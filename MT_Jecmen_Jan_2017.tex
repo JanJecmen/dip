@@ -1,0 +1,58 @@
+% arara: xelatex: { shell: yes }
+% arara: makeglossaries
+% arara: biber
+% arara: xelatex: { shell: yes }
+% arara: xelatex: { shell: yes }
+
+\documentclass[thesis=M,english,hidelinks]{template/FITthesisXE}
+
+\usepackage{graphicx}	% graphics files inclusion
+\usepackage{dirtree}	% directory tree visualisation
+\usepackage{longtable}	% tables which Pandoc use
+\usepackage{lscape}		% to be able to rotate stuff
+\usepackage{metalogo}	% for \XeLaTeX
+\usepackage{xcolor}
+\usepackage{blindtext}
+
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[[#1]]}}}
+\newcommand{\blind}[1][1]{\textcolor{gray}{\Blindtext[#1][1]}}
+
+\bibliography{library.bib}
+
+\makeglossaries
+\input{acronyms.tex}
+\glsaddall	% add even unused acronyms
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\acknowledgements{\input{acknowledgements.tex}}
+\abstractEN{\input{abstract.tex}}
+\abstractCS{\input{abstract_cs.tex}}
+\input{meta.tex}
+
+\begin{document}
+
+\input{hyphenation.tex}
+
+\begin{introduction}
+\label{introduction}
+\input{introduction.tex}
+\end{introduction}
+
+\input{xyz.tex}
+
+\begin{conclusion}
+\label{conclusion}
+\input{conclusion.tex}
+\end{conclusion}
+
+\printbibliography
+
+\appendix
+
+\chapter{Acronyms}
+\printglossary[type=\acronymtype,style=acronyms]
+
+\input{medium.tex}
+
+\end{document}
