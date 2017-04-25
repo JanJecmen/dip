@@ -1,7 +1,11 @@
 \chapter{About RIR}
 
 \todo[Introduce RIR]
-\blind[3]
+RIR\footnote{Homepage: \url{https://github.com/reactorlabs/rir}} is an alternative compiler for the R language. It comes with its own internal representation, an interpreter for its bytecode and an abstract interpretation framework which provides a way to easily implement static analyses on top of the RIR bytecode.
+
+\todo[history: research project, northeastern? grants? first appearence?]
+
+RIR acts as a drop-in replacement for the GNU R bytecode compiler. It requires a patched version of GNU R that makes some slight adjustments that allow the standard GNU R expression evaluator function to interface with the RIR bytecode compiler and interpreter. RIR is written in C and C++ and is compiled as a shared library that can be dynamically loaded by R.
 
 \todo[write about rir bytecode]
 \todo[how is rir bc different]
