@@ -1,21 +1,23 @@
 \chapter{Foo \label{foo}}
 
-\todo{write chapter}
+\todo[write chapter]
 \blind[2]
 
 \section{Section bar}\label{bar}
 
-\todo{write section}
+\todo[write section]
 \blind[2]
 
 \subsection{Subsection baz}\label{baz}
 
-\todo{write subsection}
+\todo[write subsection]
+\blind[2]
+\todoimg{0.8}
+
 \blind[2]
 
 \begin{listing}[htbp]
-\caption{\label{xxx}code}
-\begin{minted}[bgcolor=codebg]{r}
+  \begin{minted}[bgcolor=codebg]{r}
 f <- rir.compile(function(x) {
     i <- 0
     while (i < x) {
@@ -23,9 +25,14 @@ f <- rir.compile(function(x) {
     }
 })
 f(10)
-\end{minted}
+  \end{minted}
+  \caption{\label{xxx}\todo[write listing caption]}
 \end{listing}
+
+\blind[2]
 
 \url{https://github.com/reactorlabs/rir}
 
 Here is citation demo: Flask \autocite{flask}.
+
+\blind[2]

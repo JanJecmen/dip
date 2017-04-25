@@ -1,0 +1,23 @@
+\chapter{Improvements}
+
+\todo[to compiler, to ir, to interpreter, use code snippets, describe microbenchmarks, theory (threaded code...)]
+\todo[everywhere: motivation - how it helped in microbenchmarks, then how in real]
+\blind
+
+\begin{listing}[htbp]
+  \begin{minted}[bgcolor=codebg]{r}
+f <- function() {
+    i <- 10000000L
+    while (i > 0) {
+        i <- i - 1
+    }
+}
+system.time(f())[[3]]  # jit everything
+t <- c()
+for (x in 1:15) t <- c(t, system.time(f())[[3]])
+mean(t[5:15])  # only include measurments after warmup
+  \end{minted}
+  \caption{\label{xxx}\todo[write listing caption] microbenchmark (run with jit enable 2)}
+\end{listing}
+
+\blind[15]

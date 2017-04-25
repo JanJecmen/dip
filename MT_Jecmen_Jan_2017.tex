@@ -14,8 +14,18 @@
 \usepackage{xcolor}
 \usepackage{blindtext}
 
-\newcommand{\todo}[1]{\textcolor{red}{\textbf{[[#1]]}}}
+\newcommand{\todo}[1][TODO]{\textcolor{red}{\textbf{[[#1]]}}}
 \newcommand{\blind}[1][1]{\textcolor{gray}{\Blindtext[#1][1]}}
+\setlength{\fboxsep}{0.005pt}
+\newcommand{\tmpframe}[1]{\fbox{#1}}
+%\renewcommand{\tmpframe}[1]{#1}  % uncomment to disable borders around images
+\newcommand{\todoimg}[1][1]{%
+  \begin{figure}[htbp]
+    \centering
+    \tmpframe{\includegraphics[width=#1\linewidth]{images/placeholder-image}}
+    \caption{\label{fig:TODO} \todo[write title]}
+  \end{figure}
+}
 
 \bibliography{library.bib}
 
@@ -39,7 +49,11 @@
 \input{introduction.tex}
 \end{introduction}
 
-\input{xyz.tex}
+%\input{xyz.tex}
+\input{gnu-r.tex}
+\input{rir.tex}
+\input{improvements.tex}
+\input{evaluation.tex}
 
 \begin{conclusion}
 \label{conclusion}
