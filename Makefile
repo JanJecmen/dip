@@ -1,13 +1,17 @@
 
 all: MT_Jecmen_Jan_2017.pdf
 
-MT_Jecmen_Jan_2017.pdf: library.bib MT_Jecmen_Jan_2017.tex $(wildcard template/*) $(wildcard pdfs/*) $(wildcard *.tex)
-	arara MT_Jecmen_Jan_2017
+MT_Jecmen_Jan_2017.pdf: library.bib $(wildcard template/*) $(wildcard images/*) $(wildcard *.tex)
+	@arara MT_Jecmen_Jan_2017
 
-%.tex:
-	vlna "$@" 2>/dev/null || :
+%.tex: .FORCE
+	@echo -n "Running vlna for $@... "
+	@vlna -m -n -l "$@" 2>/dev/null || :
+	@echo "DONE"
 
 clean:
-	git clean -Xdf
+	@git clean -Xdf
 
-.PHONY: clean all
+.PHONY: all clean
+
+.FORCE:
