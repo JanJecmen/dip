@@ -5,6 +5,7 @@
 \blind
 
 \begin{listing}[htbp]
+  \caption{\label{xxx}\todo[write listing caption] microbenchmark (run with jit enable 2)}
   \begin{minted}[bgcolor=codebg]{r}
 f <- function() {
     i <- 10000000L
@@ -17,7 +18,8 @@ t <- c()
 for (x in 1:15) t <- c(t, system.time(f())[[3]])
 mean(t[5:15])  # only include measurments after warmup
   \end{minted}
-  \caption{\label{xxx}\todo[write listing caption] microbenchmark (run with jit enable 2)}
 \end{listing}
+
+\todo[relational operators, fast paths for logical args, unary plus minus not, loop contexts, bc cleanup, colon, superassing, inlining of instructions in main loop, threaded code, inline stack funcs, loops refactor, disable guardfuns]
 
 \blind[15]

@@ -5,11 +5,13 @@ GNU~R\footnote{Homepage: \url{https://www.r-project.org/}} is a programming lang
 
 \begin{figure}[htbp]
 \centering
-\tmpframe{\includegraphics[width=0.33\linewidth]{images/Rlogo}}
 \caption{\label{fig:rlogo} R logo\todo[license for r logo https://www.r-project.org/logo/]}
+\tmpframe{\includegraphics[width=0.33\linewidth]{images/Rlogo}}
 \end{figure}
 
 R comes with a software environment built around it, which allows for easily manipulating data, carrying out computations and producing quality graphical outputs such as plots and figures. Although at heart R is used via a command line interface, there are also more user-friendly graphical IDEs available like RStudio. This, together with R's readable syntax and a vast collection of extension packages available through CRAN makes it simple for new users to step in and start working quickly.
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \section{Language features of R}
 
@@ -25,13 +27,14 @@ These features highlight the functional approach by minimizing side effects. How
 
 The basic data type in R is a vector. Vectors are ordered collections of homogeneous values (i.e., a given vector can only hold objects of one particular type). R also provides a list type which is heterogeneous. Higher-dimensional types such as matrices and data frames, as well as objects, are built from vectors. In R there are no scalar types, as scalar values, such as individual numbers and strings, are considered to be vectors of length one.
 
-Atomic vectors can have one of these six types: logical, integer, double, character, complex and raw. Since R targets data analysis, special "not available" value is available for these. R encourages vectorized operations and most of R builtin functionality works with vectors element-wise, while recycling the elements as needed (e.g., when adding vectors of different lengths).
+Atomic vectors can have one of these six types: logical, integer, double, character, complex and raw. Since R targets data analysis, a special ``not~available'' value is provided for these. R encourages vectorized operations and most of R builtin functionality works element-wise with vectors, while recycling the elements as needed (e.g., when adding vectors of different lengths).
 
 \todo[more listings: assign, vector recycling, promise with side effect...]
 
-Interestingly, everything that happens in R is in fact a function call. This goes as far as arithmetic operators being just syntactic sugar for function calls, as can be seen in listing \todo[ref]. In this spirit, even assigning into a variable, evaluating a block of code inside curly braces or grouping expressions with parentheses translate to calling the respective functions.
+Interestingly, everything that happens in R is in fact a function call. This goes as far as arithmetic operators being just syntactic sugar for function calls, as can be seen in listing \ref{lst:arith-plus}. In this spirit, even assigning into a variable, evaluating a block of code inside curly brackets or grouping expressions with parentheses translate to calling the respective functions.
 
 \begin{listing}[htbp]
+  \caption{\label{lst:arith-plus}Arithmetic operators are function calls in R}
   \begin{minted}[bgcolor=codebg]{r}
 > typeof(`+`)
 [1] "builtin"
@@ -42,12 +45,13 @@ function (e1, e2)  .Primitive("+")
 > 1 + 2
 [1] 3
   \end{minted}
-  \caption{\label{xxx}Arithmetic operators are function calls in R}
 \end{listing}
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \section{Why is R hard to optimize}
 
-R is very dynamic and gives the programmer a very high degree of freedom. As was mentioned before, R 
+R is a very dynamic language and gives the programmer a very high degree of freedom. 
 
 \todo[cite: https://cran.r-project.org/doc/manuals/R-lang.html section 6 and 2]
 
@@ -58,10 +62,15 @@ vectorized
 subsetting, subassignment
 delayed evaluation
 two different object systems
-r inferno some examples]
-\blind[4]
+r inferno some examples
+builtin, special, closures]
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \section{Why is R slow}
+
+
+\todo[first: dynamic nature, second: design desicions]
 \todo[
 vanilla r uses standard repl and ast interpreter
 single threaded
@@ -69,15 +78,81 @@ runtime type checking, coercion
 memory hungry, garbage collection, everything on stack, a lot of metadata and attributes
 everything is function call
 written in c, no jit by default, no native jit compiler]
-\blind[1]
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \subsection{AST interpreter}
-\todo[
-recursive eval
-heavily inspired by functional programming
-expressions: self evaluating / closure application]
 
-\blind[1]
+In its core R uses a classic architecture for an interpreted language. After initialization, the user enters R's read-eval-print loop (REPL), that lets them type in expressions and have R evaluate them. First, a reader, or parser, waits for the user input and reads it line by line. If, at the end of line, it has read a syntactically complete expression, it passes it to an evaluator (otherwise it waits for more input). After the evaluator returns the evaluated expression, a printer is invoked that displays the result (with some exceptions, such as assignment that sets its result to be invisible). Then the reader is again invoked and the process repeats.
+
+Every object in R is internally represented by a C structure called SEXPREC\footnote{The name refers to S-expressions, or symbolic expressions, as known from Lisp, although the classical linked lists built from dotted pairs are mostly used internally, and vectors are implemented as C arrays for efficiency reasons.} (actually, R passes the objects around as pointers to this structure, which are called SEXP). This structure contains a header with metadata about the object, such as its type, reference counter or infromation for garbage collector, and then a union of other structures that represent different types of R internal objects. Some of these types are listed it table \ref{tab:sexp-types}.
+
+\begin{longtable}[c]{@{}ll@{}}
+\caption{Some common types of internal R objects\label{tab:sexp-types}} \tabularnewline
+\toprule
+Type & Usage \tabularnewline
+\midrule
+\endfirsthead
+\toprule
+Type & Usage \tabularnewline
+\midrule
+\endhead
+NILSXP & the singleton NULL object \tabularnewline
+SYMSXP & symbols (or names) \tabularnewline
+LISTSXP & lists of dotted pairs \tabularnewline
+CLOSXP & closures \tabularnewline
+ENVSXP & environments \tabularnewline
+PROMSXP & promises \tabularnewline
+LANGSXP & language constructs (typically closure application) \tabularnewline
+SPECIALSXP & special forms (typically control flow)\tabularnewline
+BUILTINSXP & builtin non-special forms (e.g., arithmetic operators) \tabularnewline
+INTSXP & integer vectors \tabularnewline
+REALSXP & real vectors \tabularnewline
+STRSXP & string vectors \tabularnewline
+BCODESXP & object compiled to byte code \tabularnewline
+\bottomrule
+\end{longtable}
+
+The parser, when it scans the stream of input characters, checks that it is syntactically correct and at the same time builds a tree structure that represents the parsed expression. This tree is called the abstract syntax tree (AST) and its nodes are all SEXPs. An example AST is shown in the listing \ref{lst:ast}\footnote{\todo[about pryr]}. In the listing, parentheses mean function call (i.e., LANGSXP node), the first child being the callee (typically a SYMSXP, i.e., a name that is bound to a function) and the rest its arguments.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:ast}AST of a simple expression}
+  \begin{minted}[bgcolor=codebg]{r}
+> pryr::ast(x <- (y + 3) * f(z))
+\- ()
+  \- `<-
+  \- `x
+  \- ()
+    \- `*
+    \- ()
+      \- `(
+      \- ()
+        \- `+
+        \- `y
+        \-  3
+    \- ()
+      \- `f
+      \- `z
+  \end{minted}
+\end{listing}
+
+The evaluator is a recursive function that gets as its input two SEXP objects, one representing the AST of the expression that is to be evaluated, and the other the environment in which to evaluate the expression. The evaluator walks the given AST and based on the type of nodes it encounters, performs some action. The result is then returned to be processed by the caller of eval.
+
+Some nodes are self-evaluating, meaning that no action needs to be performed and the node itself is the result. These are for example the NULL object, the atomic vectors or the environments.
+
+If the eval function sees a symbol node, a lookup for its binding is perfomed in the provided environment. If it is not found there, because of lexical scoping, the parent environment is searched, and so on, until either the binding is found or an empty environment is reached (the empty environment serves as a sentinel parent of all environment chains and does not have a parent itself).
+
+One other prominent type of nodes is LANGSXP. R has internally three types of functions, called special, builtin and closures (or user-defined functions). These have different behavior when they are applied, and the eval function handles that.
+
+Special funcions are the core language constructs, such as control flow (conditionals and loops). They take their arguments unevaluated in a list and evaluate them as needed while running. This is necessary for example for the if\todo[verb] statement, because, since R has side effects, only one of the conditional branches must be evaluated to preserve the correct semantics.
+
+Builtins on the other hand are known to evaluate all their arguments, so it is not necessary to create promises from their arguments. Instead, a list of evaluated arguments is created and passed to the builtin function. Examples of builtin functions are arithmetic operators or the colon operator for generating integer sequences.
+
+
+
+Finally, the dispatch to the bytecode interpreter for objects compiled to bytecode is also found in the eval function.
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \subsection{BC interpreter}
 \todo[
@@ -88,4 +163,3 @@ compiler written in R
 interoperates with the normal eval, but for bytecode evaluation uses loop with switch (or threading)
 bytecode encoded in vector of ints, plus per object constant pool]
 \todo[disassembled bytecode listing]
-\blind[1]
