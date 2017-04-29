@@ -1,9 +1,9 @@
-\chapter{About GNU R}
+\chapter{About GNU R\label{gnur}}
 
 GNU~R\footnote{Homepage: \url{https://www.r-project.org/}} is a programming language used mainly for statistical computations. It is an open-source dialect of S, an older statistical language created in 1976 by John Chambers at Bell Laboratories. R~has been around from 1993 and was designed by Ross Ihaka and Robert Gentleman, both recognised statisticians. It is a part of the GNU software family and is still actively developed by the R~Core Team today. It is a popular alternative to the other major implementation of the S~language, S-PLUS, which is a commercial version shipped by TIBCO Software Inc.
 \todo[cite]
 
-R comes with a software environment built around it, which allows for easily manipulating data, carrying out computations and producing quality graphical outputs such as plots and figures. Although at heart R is used via a command line interface, there are also more user-friendly graphical IDEs available like RStudio. This, together with R's readable syntax and a vast collection of extension packages available through CRAN makes it simple for new users to step in and start working quickly.
+R comes with a software environment built around it, which allows for easily manipulating data, carrying out computations and producing quality graphical outputs such as plots and figures. Although at heart R is used via a command line interface, there are also more user-friendly graphical IDEs available. One of the most widely used is RStudio\footnote{Homepage: \url{https://www.rstudio.com/}} that provides, for example, syntax highlighting and quick access to documentation through a web-like browser. This, together with R's readable syntax and a vast collection of extension packages available through The Comprehensive R~Archive Network (CRAN) makes it possible for new users to step in and start working quickly.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
@@ -13,23 +13,15 @@ R comes with a software environment built around it, which allows for easily man
 
 \todo[cite: http://adv-r.had.co.nz/]
 
-R is, as far as programming languages go, very interesting and has some quite unusual semantic features. It is an interpreted language, and is dynamically typed and garbage collected. It supports multiple programming paradigms: users can use procedural imperative style, but at the same time R provides an object system (more than one, in fact!) for object oriented programming, and is heavily influenced by functional programming languages, notably Scheme.
+R is, as far as programming languages go, very interesting and has some quite unusual semantic features. It is an interpreted language, and is dynamically typed and garbage collected. It supports multiple programming paradigms: users can use procedural imperative style, but at the same time R provides an object system (more than one, in fact!) for object oriented programming, and is heavily influenced by functional programming languages, notably Scheme (a dialect of Lisp).
 
-Functions are, in accordance with functional languages, first-class values, so they can be passed around as call arguments, returned as results and created dynamically at runtime. R uses lexical scoping (which it adopted from Scheme) and R functions are closures that capture their enclosing environment at creation time. Arguments are passed by value (although reference counting is implemented, so that deep copies are only created as needed e.g., when an object is modified). All actual arguments to a function are lazy evaluated by default. When applying a closure, parameters are wrapped in promises and these are only evaluated when the value is needed.
+Functions are, in accordance with functional languages, first-class values, so they can be passed around as call arguments, returned as results of function calls and created dynamically at runtime. R uses lexical scoping (which it adopted from Scheme) and R functions are closures that capture their enclosing environment at creation time. Arguments are passed by value (although a variant of reference counting is implemented, so that deep copies are only created as needed, e.g., when an object is modified).
 
-These features highlight the functional approach by minimizing side effects. However, R supports assignment which enables programmers to change function's local state by modifying its bindings and thus the imperative programming style. Also, the superassignment operator makes it possible to change non-local bindings and thus brings the side effects back into play.
-
-The basic data type in R is a vector. Vectors are ordered collections of homogeneous values (i.e., a given vector can only hold objects of one particular type). R also provides a list type which is heterogeneous. Higher-dimensional types such as matrices and data frames, as well as objects, are built from vectors. In R there are no scalar types, as scalar values, such as individual numbers and strings, are considered to be vectors of length one.
-
-Atomic vectors can have one of these six types: logical, integer, double, character, complex and raw. Since R targets data analysis, a special ``not~available'' value is provided for these. R encourages vectorized operations and most of R builtin functionality works element-wise with vectors, while recycling the elements as needed (e.g., when adding vectors of different lengths).
-
-\todo[more listings: assign, vector recycling, promise with side effect...]
-
-Interestingly, everything that happens in R is in fact a function call. This goes as far as arithmetic operators being just syntactic sugar for function calls, as can be seen in listing \ref{lst:arith-plus}. In this spirit, even assigning into a variable, evaluating a block of code inside curly brackets or grouping expressions with parentheses translate to calling the respective functions.
+Interestingly, everything that happens in R is in fact a function call. This goes as far as arithmetic operators being just syntactic sugar for function calls, as can be seen in listing \ref{lst:arith-plus}\footnote{As a side note, backticks are used it R to denote symbols (i.e., names). Because some symbols have special syntactic meaning (like the \rinline/+/ being an infix binary operator), they can cause a syntax error if they appear unquoted in a place where the parser does not expect them.}. In this spirit, even assigning into a variable, evaluating a block of code inside curly brackets or grouping expressions with parentheses translate to calling the respective functions.
 
 \begin{listing}[htbp]
   \caption{\label{lst:arith-plus}Arithmetic operators are function calls in R}
-  \begin{minted}[bgcolor=codebg]{r}
+  \begin{rcode}
 > typeof(`+`)
 [1] "builtin"
 > `+`
@@ -38,40 +30,63 @@ function (e1, e2)  .Primitive("+")
 [1] 3
 > 1 + 2
 [1] 3
-  \end{minted}
+  \end{rcode}
 \end{listing}
 
-% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+All actual arguments to a function are lazy evaluated by default. When applying a closure, parameters are wrapped in promises and these are only evaluated when the value is needed. This is demonstrated in listing \ref{lst:prom-lazy}, where the function in question only evaluates its first argument. For the first call, the block of code in the curly brackets is never executed and so the side-effect of printing a greeting does not happen. In the second call, the arguments are swapped, and the side-effect can be observed in the output.
 
-\section{Why is R hard to optimize}
+\begin{listing}[htbp]
+  \caption{\label{lst:prom-lazy}Promise lazy evaluation}
+  \begin{rcode}
+> f <- function(a, b) a
+> f(1, {cat("Hello\n"); 2})
+[1] 1
+> f({cat("Hello\n"); 2}, 1)
+Hello
+[1] 2
+  \end{rcode}
+\end{listing}
 
-R is a very dynamic language and gives the programmer a very high degree of freedom. 
+These features highlight the functional approach of R by minimizing side-effects. However, R supports assignment which enables programmers to change a function's local state by modifying its bindings and thus the imperative programming style. Also, the superassignment operator \rinline/<<-/ makes it possible to change non-local bindings (as shown in listing \ref{lst:superassign}) and thus brings the side-effects back into play.
 
-\todo[cite: https://cran.r-project.org/doc/manuals/R-lang.html section 6 and 2]
+\begin{listing}[htbp]
+  \caption{\label{lst:superassign}Superassignment}
+  \begin{rcode}
+> x <- 1
+> f <- function() {
++     x <- 2  # local
++     x <<- 3  # lookup in the enclosing environment
++     x  # local
++ }
+> x
+[1] 1
+> f()
+[1] 2
+> x
+[1] 3
+  \end{rcode}
+\end{listing}
 
-\todo[
-dynamic, user can do anything
-introspection
-vectorized
-subsetting, subassignment
-delayed evaluation
-two different object systems
-r inferno some examples
-builtin, special, closures]
+The basic data type in R is an atomic vector. Vectors are collections of homogeneous values (i.e., a given vector can only hold objects of one particular type), that preserve the order of their elements. R also provides a list type which is heterogeneous. Higher-dimensional types such as matrices and data frames, as well as objects, are built from vectors under the hood. In R there are no scalar types, as scalar values, such as individual numbers and strings, are considered to be vectors of length one.
 
-% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+Atomic vectors can have one of these six types: logical, integer, double, character, complex and raw. Since R targets data analysis, a special ``not~available'' value is provided for these. R encourages vectorized operations and most of R builtin functionality works element-wise with vectors, while recycling the elements as needed (e.g., when adding vectors of different lengths).
 
-\section{Why is R slow}
+\begin{listing}[htbp]
+  \caption{\label{lst:arith-plus}Arithmetic operators are function calls in R}
+  \begin{rcode}
+> numeric(10)
+ [1] 0 0 0 0 0 0 0 0 0 0
+> 1:3
+[1] 1 2 3
+> numeric(10) + 1:3
+ [1] 1 2 3 1 2 3 1 2 3 1
+Warning message:
+In numeric(10) + 1:3 :
+  longer object length is not a multiple of shorter object length
+  \end{rcode}
+\end{listing}
 
-
-\todo[first: dynamic nature, second: design desicions]
-\todo[
-vanilla r uses standard repl and ast interpreter
-single threaded
-runtime type checking, coercion
-memory hungry, garbage collection, everything on stack, a lot of metadata and attributes
-everything is function call
-written in c, no jit by default, no native jit compiler]
+\todo[more listings: assign, vector recycling, promise with side effect...]
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
@@ -111,7 +126,7 @@ The parser, when it scans the stream of input characters, checks that it is synt
 
 \begin{listing}[htbp]
   \caption{\label{lst:ast}AST of a simple expression}
-  \begin{minted}[bgcolor=codebg]{r}
+  \begin{rcode}
 > pryr::ast(x <- (y + 3) * f(z))
 \- ()
   \- `<-
@@ -127,7 +142,7 @@ The parser, when it scans the stream of input characters, checks that it is synt
     \- ()
       \- `f
       \- `z
-  \end{minted}
+  \end{rcode}
 \end{listing}
 
 The evaluator is a recursive function that gets as its input two SEXP objects, one representing the AST of the expression that is to be evaluated, and the other the environment in which to evaluate the expression. The evaluator walks the given AST and based on the type of nodes it encounters, performs some action. The result is then returned to be processed by the caller of eval.
@@ -138,7 +153,7 @@ If the eval function sees a symbol node, a lookup for its binding is perfomed in
 
 One other prominent type of nodes is LANGSXP. R has internally three types of functions, called special, builtin and closures (or user-defined functions). These have different behavior when they are applied, and the eval function handles that.
 
-Special funcions are the core language constructs, such as control flow (conditionals and loops). They take their arguments unevaluated in a list and evaluate them as needed while running. This is necessary for example for the if\todo[verb] statement, because, since R has side effects, only one of the conditional branches must be evaluated to preserve the correct semantics.
+Special funcions are the core language constructs, such as control flow (conditionals and loops). They take their arguments unevaluated in a list and evaluate them as needed while running. This is necessary for example for the if\todo[verb] statement, because, since R has side-effects, only one of the conditional branches must be evaluated to preserve the correct semantics.
 
 Builtins on the other hand are known to evaluate all their arguments, so it is not necessary to create promises from their arguments. Instead, a list of evaluated arguments is created and passed to the builtin function. Examples of builtin functions are arithmetic operators or the colon operator for generating integer sequences.
 
@@ -149,6 +164,24 @@ Finally, the dispatch to the bytecode interpreter for objects compiled to byteco
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \subsection{BC interpreter}
+
+In an attempt to make R faster, a special internal representation for R code was developed, and a compiler from R to this bytecode was added in a package called \todo[verb]compiler. This also required some minor changes to the original AST interpreter, namely adding a new SEXP type for the compiled objects, called BCODESXP, and handling of bytecode objects in the evaluator. A~new evaluator was also added for interpreting the bytecode which is invoked by the AST version when it needs to evaluate a compiled object.
+
+The compiler was written by Luke Tierney, and added as a standard package to~R in~2011 (version 2.13.0\todo[cite: https://stat.ethz.ch/pipermail/r-announce/2011/000538.html]). However, it was not used by default until version 3.4.0, released in late April~2017\footnote{Although packages were compiled when installed\todo[since when? all?]}. \todo[cite https://stat.ethz.ch/pipermail/r-announce/2017/000612.html] 
+
+\begin{listing}[htbp]
+  \caption{\label{lst:ast}Simple function compiled to BC}
+  \begin{rcode}
+> f <- compiler::cmpfun(function(n) n + 1)
+> f
+function(n) n + 1
+<bytecode: 0x367ee40>
+> compiler::disassemble(f)
+list(.Code, list(8L, GETVAR.OP, 1L, LDCONST.OP, 2L, ADD.OP, 0L, 
+    RETURN.OP), list(n + 1, n, 1))
+  \end{rcode}
+\end{listing}
+
 \todo[
 from when
 only now as default out of the box behaviour for base
@@ -157,3 +190,33 @@ compiler written in R
 interoperates with the normal eval, but for bytecode evaluation uses loop with switch (or threading)
 bytecode encoded in vector of ints, plus per object constant pool]
 \todo[disassembled bytecode listing]
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\section{Why is R hard to optimize}
+
+Firstly, R is not the fastest language out there. Of course, being an intepreted language, one cannot expect the performance of lagnuages like C that are compiled to native machine code. This is because during runtime, there is the inherent overhead of managing the virtual machine that executes a given program. In the case of AST interpreter, this overhead is \todo
+
+R is a very dynamic language and gives the programmer a very high degree of freedom. 
+
+\todo[cite: https://cran.r-project.org/doc/manuals/R-lang.html section 6 and 2]
+
+\todo[
+dynamic, user can do anything
+introspection
+vectorized
+subsetting, subassignment
+delayed evaluation
+two different object systems
+r inferno some examples
+builtin, special, closures]
+
+
+\todo[first: dynamic nature, second: design desicions]
+\todo[
+vanilla r uses standard repl and ast interpreter
+single threaded
+runtime type checking, coercion
+memory hungry, garbage collection, everything on stack, a lot of metadata and attributes
+everything is function call
+written in c, no jit by default, no native jit compiler]

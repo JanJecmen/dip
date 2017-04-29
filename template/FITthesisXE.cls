@@ -57,6 +57,7 @@
 
 \setsecnumdepth {subsubsection}
 \chapterstyle {madsen}
+%\chapterstyle {veelo}
 
 \let \newfloat \relax			% use floatrow package instead of float
 \RequirePackage {floatrow}		% ...so we can force caption position
@@ -201,6 +202,9 @@
 \setsecheadstyle		{ \Large \bfseries \sffamily }
 \setsubsecheadstyle		{ \large \bfseries \sffamily }
 \setsubsubsecheadstyle	{ \normalsize \bfseries \sffamily }
+%\setsecheadstyle		{ \Large \bfseries }
+%\setsubsecheadstyle		{ \large \bfseries }
+%\setsubsubsecheadstyle	{ \normalsize \bfseries }
 
 % do not indent the first line of a paragraph and add blank line after each
 \DisemulatePackage {parskip}

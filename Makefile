@@ -9,6 +9,9 @@ MT_Jecmen_Jan_2017.pdf: library.bib $(wildcard template/*) $(wildcard images/*) 
 	@vlna -m -n -l "$@" 2>/dev/null || :
 	@echo "DONE"
 
+verbose: .FORCE
+	arara -v MT_Jecmen_Jan_2017
+
 clean:
 	@git clean -Xdf
 
