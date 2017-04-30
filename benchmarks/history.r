@@ -1,8 +1,10 @@
 library(ggplot2)
 library(Hmisc)
+library(extrafont)
+loadfonts(device = "win")
 
-args <- commandArgs(trailingOnly = TRUE)
-# args <- "../Desktop/bench/"
+# args <- commandArgs(trailingOnly = TRUE)
+args <- "../Desktop/bench/"
 
 files <- sort(list.files(path = args[[1]], pattern = "^benchmark.*\\.csv$"))
 
@@ -31,9 +33,10 @@ for (i in seq_along(files)) {
 ggplot(combined, aes(x=reorder(version, i), y=time, color=experiment, group=interaction(benchmark, experiment))) +
   stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
   facet_wrap(~benchmark) +
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  theme(axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1)) +
   xlab("revision") +
-  ylab("time [s]")
+  ylab("time [s]") +
+  theme(text = element_text(family="DejaVu Sans"))
 
-ggsave(file.path(args[[1]], "speedup_history.pdf"))
+ggsave(file.path(args[[1]], "speedup_history.pdf"), device=cairo_pdf)
 ggsave(file.path(args[[1]], "speedup_history.png"), scale=1.5)
