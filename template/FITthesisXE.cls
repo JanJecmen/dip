@@ -56,8 +56,8 @@
 \LoadClass [a4paper,twoside] {memoir} [2008/08/07]
 
 \setsecnumdepth {subsubsection}
-\chapterstyle {madsen}
-%\chapterstyle {veelo}
+%\chapterstyle {madsen}
+\chapterstyle {veelo}
 
 \let \newfloat \relax			% use floatrow package instead of float
 \RequirePackage {floatrow}		% ...so we can force caption position
@@ -199,12 +199,12 @@
 \setstretch {1.15}
 
 % use sans-serif font for titles
-\setsecheadstyle		{ \Large \bfseries \sffamily }
-\setsubsecheadstyle		{ \large \bfseries \sffamily }
-\setsubsubsecheadstyle	{ \normalsize \bfseries \sffamily }
-%\setsecheadstyle		{ \Large \bfseries }
-%\setsubsecheadstyle		{ \large \bfseries }
-%\setsubsubsecheadstyle	{ \normalsize \bfseries }
+%\setsecheadstyle		{ \Large \bfseries \sffamily }
+%\setsubsecheadstyle		{ \large \bfseries \sffamily }
+%\setsubsubsecheadstyle	{ \normalsize \bfseries \sffamily }
+\setsecheadstyle		{ \Large \bfseries }
+\setsubsecheadstyle		{ \large \bfseries }
+\setsubsubsecheadstyle	{ \normalsize \bfseries }
 
 % do not indent the first line of a paragraph and add blank line after each
 \DisemulatePackage {parskip}
