@@ -13,11 +13,11 @@ R comes with a software environment built around it, which allows for easily man
 
 \todo[cite: http://adv-r.had.co.nz/]
 
-R is, as far as programming languages go, very interesting and has some quite unusual semantic features. It is an interpreted language, and is dynamically typed and garbage collected. It supports multiple programming paradigms: users can use procedural imperative style, but at the same time R provides an object system (more than one, in fact!) for object oriented programming, and is heavily influenced by functional programming languages, notably Scheme (a dialect of Lisp).
+R is, as far as programming languages go, very interesting and has some quite unusual semantic features. It is an interpreted language, and is dynamically typed and garbage collected. It supports multiple programming paradigms: users can use procedural imperative style, but at the same time R provides an object system (more than one, in fact!) for object oriented programming, and is heavily influenced by functional programming languages, notably Scheme (a~dialect of Lisp).
 
 Functions are, in accordance with functional languages, first-class values, so they can be passed around as call arguments, returned as results of function calls and created dynamically at runtime. R uses lexical scoping (which it adopted from Scheme) and R functions are closures that capture their enclosing environment at creation time. Arguments are passed by value (although a variant of reference counting is implemented, so that deep copies are only created as needed, e.g., when an object is modified).
 
-Interestingly, everything that happens in R is in fact a function call. This goes as far as arithmetic operators being just syntactic sugar for function calls, as can be seen in listing \ref{lst:arith-plus}\footnote{As a side note, backticks are used it R to denote symbols (i.e., names). Because some symbols have special syntactic meaning (like the \rinline/+/ being an infix binary operator), they can cause a syntax error if they appear unquoted in a place where the parser does not expect them.}. In this spirit, even assigning into a variable, evaluating a block of code inside curly brackets or grouping expressions with parentheses translate to calling the respective functions.
+Interestingly, everything that happens in R is in fact a function call. This goes as far as arithmetic operators being just syntactic sugar for function calls, as can be seen in listing \ref{lst:arith-plus}\footnote{As a side note, backticks are used it R to denote symbols (i.e., names). Because some symbols have special syntactic meaning (like the \rinline/`+`/ being an infix binary operator), they can cause a syntax error if they appear unquoted in a place where the parser does not expect them.}. In this spirit, even assigning into a variable, evaluating a block of code inside curly brackets or grouping expressions with parentheses translate to calling the respective functions.
 
 \begin{listing}[htbp]
   \caption{\label{lst:arith-plus}Arithmetic operators are function calls in R}
@@ -33,7 +33,9 @@ function (e1, e2)  .Primitive("+")
   \end{rcode}
 \end{listing}
 
-All actual arguments to a function are lazy evaluated by default. When applying a closure, parameters are wrapped in promises and these are only evaluated when the value is needed. This is demonstrated in listing \ref{lst:prom-lazy}, where the function in question only evaluates its first argument. For the first call, the block of code in the curly brackets is never executed and so the side-effect of printing a greeting does not happen. In the second call, the arguments are swapped, and the side-effect can be observed in the output.
+All actual arguments to a function are lazy evaluated by default. When applying a closure, parameters are wrapped in promises. A~promise is simply an object that contains the unevaluated expression and an environment in which the expression should be evaluated. Promises are only evaluated when the value is actually needed (which is called forcing the promise). Also, once the promise is forced, it remembers the result, so that subsequent uses of the value do not evaluate the expression again.
+
+This is demonstrated in listing \ref{lst:prom-lazy}, where the function in question only evaluates its first argument and does not touch the second. For the first call, the block of code in the curly brackets is never executed and so the side-effect of printing a greeting does not happen. In the second call, the arguments are swapped, and the side-effect can be observed in the output. It is possible to pass a~block of code as a~function argument, since the \rinline/`{`/ is bound to a function that sequentially evaluates all its arguments and returns as its result the value of the last expression (or \rinline/NULL/ if no expressions are passed in).
 
 \begin{listing}[htbp]
   \caption{\label{lst:prom-lazy}Promise lazy evaluation}
@@ -47,7 +49,7 @@ Hello
   \end{rcode}
 \end{listing}
 
-These features highlight the functional approach of R by minimizing side-effects. However, R supports assignment which enables programmers to change a function's local state by modifying its bindings and thus the imperative programming style. Also, the superassignment operator \rinline/<<-/ makes it possible to change non-local bindings (as shown in listing \ref{lst:superassign}) and thus brings the side-effects back into play.
+These features highlight the functional approach of R by minimizing side-effects. However, R supports assignment\footnote{An interesting quirk is R's left to right assignment: the code \rinline/1 -> x/ assigns 1 to x and is equivalent to \rinline/x <- 1/.} which enables programmers to change a function's local state by modifying its bindings and thus the imperative programming style. Also, the superassignment operator \rinline/`<<-`/ makes it possible to change non-local bindings (as shown in listing \ref{lst:superassign}) and thus brings the side-effects back into play.
 
 \begin{listing}[htbp]
   \caption{\label{lst:superassign}Superassignment}
@@ -67,12 +69,33 @@ These features highlight the functional approach of R by minimizing side-effects
   \end{rcode}
 \end{listing}
 
-The basic data type in R is an atomic vector. Vectors are collections of homogeneous values (i.e., a given vector can only hold objects of one particular type), that preserve the order of their elements. R also provides a list type which is heterogeneous. Higher-dimensional types such as matrices and data frames, as well as objects, are built from vectors under the hood. In R there are no scalar types, as scalar values, such as individual numbers and strings, are considered to be vectors of length one.
+The basic data type in R is an atomic vector. Vectors are collections of homogeneous values (i.e., a given vector can only hold objects of one particular type), that preserve the order of their elements. R also provides a list type which is heterogeneous. Higher-dimensional types such as matrices and data frames, as well as objects, are built from vectors and lists under the hood. In R there are no scalar types, as scalar values, such as individual numbers and strings, are considered to be vectors of length one.
 
-Atomic vectors can have one of these six types: logical, integer, double, character, complex and raw. Since R targets data analysis, a special ``not~available'' value is provided for these. R encourages vectorized operations and most of R builtin functionality works element-wise with vectors, while recycling the elements as needed (e.g., when adding vectors of different lengths).
+Atomic vectors can have one of these six types: logical, integer, double, character, complex and raw. Since R targets data analysis, a special ``not~available'' value \rinline/NA/ is provided for these. Because all values in a vector must be of the same type, R performs coercion when an attempt is made to combine vectors of different types. In listing \ref{lst:coercion}, combining a numeric vector with a character vector results in a character vector, and summing a logical vector coerces to integers (\rinline/TRUE/ becoming \rinline/1/ and \rinline/FALSE/ becoming \rinline/0/).
 
 \begin{listing}[htbp]
-  \caption{\label{lst:arith-plus}Arithmetic operators are function calls in R}
+  \caption{\label{lst:coercion}Coercion to the most flexible type}
+  \begin{rcode}
+> x <- c(1, 2, 3)
+> y <- c("a", "b", "c")
+> typeof(x)
+[1] "double"
+> typeof(y)
+[1] "character"
+> c(x, y)
+[1] "1" "2" "3" "a" "b" "c"
+> typeof(c(x, y))
+[1] "character"
+>
+> sum(c(TRUE, TRUE, FALSE, TRUE))
+[1] 3
+  \end{rcode}
+\end{listing}
+
+Despite its inspiration in functional world, R does not optimize tail recursion, which is the standard approach in functional languages since they typically use recursion in the place of iterative loops. Instead, R encourages vectorized operations. Hence, most of R builtin functionality works element-wise with vectors, while recycling the elements as needed (e.g., when adding vectors of different lengths). This is demonstrated in listing \ref{lst:recycling}, where R even issues a warning about recycling.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:recycling}Recycling shorter vector}
   \begin{rcode}
 > numeric(10)
  [1] 0 0 0 0 0 0 0 0 0 0
@@ -86,7 +109,34 @@ In numeric(10) + 1:3 :
   \end{rcode}
 \end{listing}
 
-\todo[more listings: assign, vector recycling, promise with side effect...]
+In R, every object can have arbitrary attributes associated with its data. Attributes are basically a hidden map that assigns names to values. Some of the most important attributes are names (a character vector that assigns names to elements), dimensions (a vector specifying the dimensions and thus effectively distinguishing vectors from matrices and arrays) and class (for implementing one of R's object systems). Attributes are used a lot in R for many purposes and extensions as they provide a way of encoding arbitrary additional metadata for objects. As an example, in listing \ref{attributes} a vector of 4 elements is created, then changed into a 2x2 matrix and finally changed back to vector with named elements.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:attributes}Object attributes}
+  \begin{rcode}
+> x <- 1:4
+> x
+[1] 1 2 3 4
+> attr(x, "dim") <- c(2, 2)
+> x
+     [,1] [,2]
+[1,]    1    3
+[2,]    2    4
+> attr(x, "dim") <- c(4)
+> attr(x, "names") <- c("a", "b", "c", "d")
+> x
+a b c d 
+1 2 3 4 
+  \end{rcode}
+\end{listing}
+
+\todo[data frames?]
+
+\todo[objects]
+
+\todo[subsetting, subassignment]
+
+\todo[ellipsis, named arguments, missing]
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
@@ -118,7 +168,7 @@ BUILTINSXP & builtin non-special forms (e.g., arithmetic operators) \tabularnewl
 INTSXP & integer vectors \tabularnewline
 REALSXP & real vectors \tabularnewline
 STRSXP & string vectors \tabularnewline
-BCODESXP & object compiled to byte code \tabularnewline
+BCODESXP & object compiled to bytecode \tabularnewline
 \bottomrule
 \end{longtable}
 
@@ -155,22 +205,33 @@ One other prominent type of nodes is LANGSXP. R has internally three types of fu
 
 Special funcions are the core language constructs, such as control flow (conditionals and loops). They take their arguments unevaluated in a list and evaluate them as needed while running. This is necessary for example for the if\todo[verb] statement, because, since R has side-effects, only one of the conditional branches must be evaluated to preserve the correct semantics.
 
-Builtins on the other hand are known to evaluate all their arguments, so it is not necessary to create promises from their arguments. Instead, a list of evaluated arguments is created and passed to the builtin function. Examples of builtin functions are arithmetic operators or the colon operator for generating integer sequences.
+Builtins, on the other hand, are known to evaluate all their arguments, so it is not necessary to create promises from their arguments. Instead, a list of evaluated arguments is created and passed to the builtin function. Examples of builtin functions are arithmetic operators or the colon operator for generating integer sequences.
 
+The last group are closures. Closures are user-defined functions written in R, and they adhere to the lazy evaluation semantics. All arguments to a closure are therefore allocated as promises: the expressions are bundled together with the enclosing environment.
 
+As opposed to specials and builtins, which, being C routines, are called directly after preparing their arguments, closures need the interpreter to do some additional work. First, the actual unevaluated arguments have to be matched to the formal arguments of the closure. Then, a new environment has to be created and filled with the matched pairs or arguments. Only after this can the body of the closure be evaluated in the new environment. Also, a longjump target is set here to catch any explicit return calls from within the body.
 
 Finally, the dispatch to the bytecode interpreter for objects compiled to bytecode is also found in the eval function.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
-\subsection{BC interpreter}
+\subsection{BC compiler and interpreter}
 
 In an attempt to make R faster, a special internal representation for R code was developed, and a compiler from R to this bytecode was added in a package called \todo[verb]compiler. This also required some minor changes to the original AST interpreter, namely adding a new SEXP type for the compiled objects, called BCODESXP, and handling of bytecode objects in the evaluator. A~new evaluator was also added for interpreting the bytecode which is invoked by the AST version when it needs to evaluate a compiled object.
 
-The compiler was written by Luke Tierney, and added as a standard package to~R in~2011 (version 2.13.0\todo[cite: https://stat.ethz.ch/pipermail/r-announce/2011/000538.html]). However, it was not used by default until version 3.4.0, released in late April~2017\footnote{Although packages were compiled when installed\todo[since when? all?]}. \todo[cite https://stat.ethz.ch/pipermail/r-announce/2017/000612.html] 
+The compiler was written by Luke Tierney, and added as a standard package to~R in~2011 (version 2.13.0\todo[cite: https://stat.ethz.ch/pipermail/r-announce/2011/000538.html]). However, it was not used by default until version 3.4.0, released in late April~2017\footnote{Although packages were compiled when installed\todo[since when? all?]}.\todo[cite https://stat.ethz.ch/pipermail/r-announce/2017/000612.html]
+
+\todo[cite compiler pdf]
+The BC compiler itself is implemented in R, and walks the abstract syntax tree of an expression being compiled in a similar manner that the AST interpreter does (but, of course, it does so at the R level by using introspection). However, instead of evaluating the code as it traverses the tree, it produces a code object. The code is then executed by a virtual machine runtime system.
+
+The virtual machine that executes the R bytecode is stack based. This means that at runtime a stack is used by the instructions to get their arguments and store their results. For example, the instruction that performs addition, expects its two operands at the top of the stack. When it is executed, it removes these two objects from the stack, adds them together, and puts the resulting object back on the top of the stack.
+
+The bytecode objects produced by the compiler consist of two components. The first is an integer vector that encodes the code itself in the form of instruction opcodes interleaved with the instruction operands. The second is a general list that represents a constant pool. The compiler is designed such that each bytecode object has its own constant pool. In the constant pool, important objects are stored, such as the source for the compiled expression, small constant objects, or promises.
+
+The compiler comes with a disassembler that makes it possible to inspect the bytecode, as is shown in listing \ref{lst:disasm}. The object is printed as a list that starts with the \rinline/.Code/ symbol, then follows the code vector with the opcodes decoded, and last comes the constant pool. The integers in the code that are not instructions represent arguments to the instructions (the first element is an exception, as it encodes the version of the BC stored in the given object).
 
 \begin{listing}[htbp]
-  \caption{\label{lst:ast}Simple function compiled to BC}
+  \caption{\label{lst:disasm}Disassembling a BC object}
   \begin{rcode}
 > f <- compiler::cmpfun(function(n) n + 1)
 > f
@@ -182,14 +243,15 @@ list(.Code, list(8L, GETVAR.OP, 1L, LDCONST.OP, 2L, ADD.OP, 0L,
   \end{rcode}
 \end{listing}
 
+
+\todo[JIT in applyclosure]
+
 \todo[
-from when
 only now as default out of the box behaviour for base
 compiler written in R
 120sth bc instructions
 interoperates with the normal eval, but for bytecode evaluation uses loop with switch (or threading)
 bytecode encoded in vector of ints, plus per object constant pool]
-\todo[disassembled bytecode listing]
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
@@ -203,6 +265,7 @@ R is a very dynamic language and gives the programmer a very high degree of free
 
 \todo[
 dynamic, user can do anything
+non-standard evaluation
 introspection
 vectorized
 subsetting, subassignment

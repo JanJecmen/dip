@@ -1,5 +1,25 @@
 \chapter{Improvements\label{improvements}}
 
+In this chapter I~will discuss in detail the changes made to RIR in an attempt to bring it up to speed with GNU R byte-compiled code.
+
+
+...
+
+\section{Refactoring RIR interpreter}
+
+As it turned out, a lot of speedup could be gained by changing the RIR bytecode interpreter. 
+
+\begin{listing}[htbp]
+  \caption{\label{xxx}\todo[write listing caption] microbenchmark (run with jit enable 2)}
+  \begin{minted}[bgcolor=codebg]{r}
+f <- function() {
+    i <- 10000000L
+    while (i > 0) {
+        i <- i - 1
+    }
+}
+
+
 \todo[to compiler, to ir, to interpreter, use code snippets, describe microbenchmarks, theory (threaded code...)]
 \todo[everywhere: motivation - how it helped in microbenchmarks, then how in real]
 \blind
