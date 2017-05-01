@@ -271,7 +271,7 @@ $sq
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
-\subsection{AST interpreter}
+\section{AST interpreter}
 
 In its core R uses a classic architecture for an interpreted language. After initialization, the user enters R's read-eval-print loop (REPL), that lets them type in expressions and have R evaluate them. First, a reader, or parser, waits for the user input and reads it line by line. If, at the end of line, it has read a syntactically complete expression, it passes it to an evaluator (otherwise it waits for more input). After the evaluator returns the evaluated expression, a printer is invoked that displays the result (with some exceptions, such as assignment that sets its result to be invisible). Then the reader is again invoked and the process repeats.
 
@@ -303,7 +303,7 @@ BCODESXP & object compiled to bytecode \tabularnewline
 \bottomrule
 \end{longtable}
 
-The parser, when it scans the stream of input characters, checks that it is syntactically correct and at the same time builds a tree structure that represents the parsed expression. This tree is called the abstract syntax tree (AST) and its nodes are all SEXPs. An example AST is shown in the listing \ref{lst:ast}\footnote{\todo[about pryr]}. In the listing, parentheses mean function call (i.e., LANGSXP node), the first child being the callee (typically a SYMSXP, i.e., a name that is bound to a function) and the rest its arguments.
+The parser, when it scans the stream of input characters, checks that it is syntactically correct and at the same time builds a tree structure that represents the parsed expression. This tree is called the abstract syntax tree (AST) and its nodes are all SEXPs. An example AST is shown in the listing \ref{lst:ast}\footnote{\rinline/pryr/ (homepage: \url{https://github.com/hadley/pryr}) is a package created by Hadley Wickham that allows to ``pry back the surface of R and dig into the details.''}. In the listing, parentheses denote function calls (i.e., LANGSXP node), the first child being the callee (typically a SYMSXP, i.e., a name that is bound to a function) and the rest its arguments.
 
 \begin{listing}[htbp]
   \caption{\label{lst:ast}AST of a simple expression}
@@ -328,7 +328,7 @@ The parser, when it scans the stream of input characters, checks that it is synt
 
 The evaluator is a recursive function that gets as its input two SEXP objects, one representing the AST of the expression that is to be evaluated, and the other the environment in which to evaluate the expression. The evaluator walks the given AST and based on the type of nodes it encounters, performs some action. The result is then returned to be processed by the caller of eval.
 
-Some nodes are self-evaluating, meaning that no action needs to be performed and the node itself is the result. These are for example the NULL object, the atomic vectors or the environments.
+Some nodes are self-evaluating, meaning that no action needs to be performed and the node itself is the result. These are for example the \rinline/NULL/ object, atomic vectors or environments.
 
 If the eval function sees a symbol node, a lookup for its binding is perfomed in the provided environment. If it is not found there, because of lexical scoping, the parent environment is searched, and so on, until either the binding is found or an empty environment is reached (the empty environment serves as a sentinel parent of all environment chains and does not have a parent itself).
 
@@ -340,26 +340,26 @@ Builtins, on the other hand, are known to evaluate all their arguments, so it is
 
 The last group are closures. Closures are user-defined functions written in R, and they adhere to the lazy evaluation semantics. All arguments to a closure are therefore allocated as promises: the expressions are bundled together with the enclosing environment.
 
-As opposed to specials and builtins, which, being C routines, are called directly after preparing their arguments, closures need the interpreter to do some additional work. First, the actual unevaluated arguments have to be matched to the formal arguments of the closure. Then, a new environment has to be created and filled with the matched pairs or arguments. Only after this can the body of the closure be evaluated in the new environment. Also, a longjump target is set here to catch any explicit return calls from within the body.
+As opposed to specials and builtins, which, being C routines, are called directly after preparing their arguments, closures need the interpreter to do some additional work. First, the actual unevaluated arguments have to be matched to the formal arguments of the closure. Then, a new environment has to be created and filled with the matched pairs of arguments. Only after this can the body of the closure be evaluated in the new environment. Also, a longjump target is set here to catch any explicit return calls from within the body.
 
 Finally, the dispatch to the bytecode interpreter for objects compiled to bytecode is also found in the eval function.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
-\subsection{BC compiler and interpreter}
+\section{BC interpreter and compiler}
 
 In an attempt to make R faster, a special internal representation for R code was developed, and a compiler from R to this bytecode was added in a package called \todo[verb]compiler. This also required some minor changes to the original AST interpreter, namely adding a new SEXP type for the compiled objects, called BCODESXP, and handling of bytecode objects in the evaluator. A~new evaluator was also added for interpreting the bytecode which is invoked by the AST version when it needs to evaluate a compiled object.
 
-The compiler was written by Luke Tierney, and added as a standard package to~R in~2011 (version 2.13.0\todo[cite: https://stat.ethz.ch/pipermail/r-announce/2011/000538.html]). However, it was not used by default until version 3.4.0, released in late April~2017\footnote{Although packages were compiled when installed\todo[since when? all?]}.\todo[cite https://stat.ethz.ch/pipermail/r-announce/2017/000612.html]
+The compiler was written by Luke Tierney, and added as a standard package to~R in~2011 in version 2.13.0 \autocite{announce2011}. However, it was not used by default until version 3.4.0, released in late April~2017\footnote{The default packages were compiled, but for additional packages and user code JIT was disabled and had to be explicitly enabled.} \autocite{announce2017}.
 
 \todo[cite compiler pdf]
-The BC compiler itself is implemented in R, and walks the abstract syntax tree of an expression being compiled in a similar manner that the AST interpreter does (but, of course, it does so at the R level by using introspection). However, instead of evaluating the code as it traverses the tree, it produces a code object. The code is then executed by a virtual machine runtime system.
+The BC compiler itself is implemented in R, and walks the abstract syntax tree of an expression being compiled in a similar manner that the AST interpreter does (but, of course, it does so at the R level by using introspection). However, instead of evaluating the code as it traverses the tree, it produces a code object. The code is then later executed by the BC interpreter, a separate virtual machine runtime system from the AST version. The compiler uses just a single pass, meaning that it only looks at the compiled expression once, and while doing so, produces a stream of instruction. A~multi-pass version that would add optimization passes for the internal representation is planned to be explored in the future.
 
-The virtual machine that executes the R bytecode is stack based. This means that at runtime a stack is used by the instructions to get their arguments and store their results. For example, the instruction that performs addition, expects its two operands at the top of the stack. When it is executed, it removes these two objects from the stack, adds them together, and puts the resulting object back on the top of the stack.
+The bytecode objects produced by the compiler consist of two components. The first is an integer vector that encodes the code itself in the form of instruction opcodes interleaved with the instruction operands. The second is a general list that represents a constant pool. In the constant pool, important objects are stored, such as the source for the compiled expression, small constant objects, or promises. The compiler is designed such that each bytecode object has its own constant pool.
 
-The bytecode objects produced by the compiler consist of two components. The first is an integer vector that encodes the code itself in the form of instruction opcodes interleaved with the instruction operands. The second is a general list that represents a constant pool. The compiler is designed such that each bytecode object has its own constant pool. In the constant pool, important objects are stored, such as the source for the compiled expression, small constant objects, or promises.
+The compiler can be used explicitly to compile an expression or a closure. However, a more convenient way is to enable just-in-time compilation (JIT). Doing so causes the AST interpreter to invoke the compiler automatically when calling a closure that is not yet compiled.
 
-The compiler comes with a disassembler that makes it possible to inspect the bytecode, as is shown in listing \ref{lst:disasm}. The object is printed as a list that starts with the \rinline/.Code/ symbol, then follows the code vector with the opcodes decoded, and last comes the constant pool. The integers in the code that are not instructions represent arguments to the instructions (the first element is an exception, as it encodes the version of the BC stored in the given object).
+The compiler comes with a disassembler that makes it possible to inspect the bytecode of an object, as is shown in listing \ref{lst:disasm}. The object is printed as a list that starts with the \rinline/.Code/ symbol, then follows the code vector (with the opcodes decoded), and last comes the constant pool. The integers in the code that are not instructions represent arguments to the instructions (the first element is an exception, as it encodes the version of the BC stored in the given object).
 
 \begin{listing}[htbp]
   \caption{\label{lst:disasm}Disassembling a BC object}
@@ -374,45 +374,67 @@ list(.Code, list(8L, GETVAR.OP, 1L, LDCONST.OP, 2L, ADD.OP, 0L,
   \end{rcode}
 \end{listing}
 
+The virtual machine that executes R bytecode uses a stack oriented architecture. This means that a stack is used by the instructions at runtime to get their arguments and store their results. For example, the instruction that performs addition, expects its two operands at the top of the stack. When it is executed, it removes these two objects from the stack, adds them together, and puts the resulting object back on the top of the stack.
 
-\todo[JIT in applyclosure]
+The VM is implemented as a C routine that gets a bytecode object and an environment as arguments (similar to the AST interpreter). It verifies the BC version and then enters a loop that looks at the instruction stream in the BC object and dispatches to code that implements the given instruction. The loop is very carefully optimized by various techniques, such as using C preprocessor macros and threaded code. This will be discussed later in chapter \ref{improvements}.
 
-\todo[
-only now as default out of the box behaviour for base
-compiler written in R
-120sth bc instructions
-interoperates with the normal eval, but for bytecode evaluation uses loop with switch (or threading)
-bytecode encoded in vector of ints, plus per object constant pool]
+The instruction set of the internal representation is designed to allow big parts of the AST interpreter internals to be reused. There are currently 123 instructions, some of which are described in table \ref{tab:gnur-instr}.
+
+\begin{longtable}[c]{@{}ll@{}}
+\caption{Description of some GNU R bytecodes\label{tab:gnur-instr}} \tabularnewline
+\toprule
+Instruction & Description \tabularnewline
+\midrule
+\endfirsthead
+\toprule
+Instruction & Description \tabularnewline
+\midrule
+\endhead
+RETURN.OP & Take the top of stack and return it as a result \tabularnewline
+GOTO.OP & Unconditionally jump to a label \tabularnewline
+BRIFNOT.OP & Conditionally jump to a label \tabularnewline
+POP.OP & Remove the top of stack value \tabularnewline
+LDCONST.OP & Push a constant from the constant pool \tabularnewline
+GETVAR.OP & Look up the symbol binding and push it \tabularnewline
+SETVAR.OP & Update the symbol binding \tabularnewline
+MAKEPROM.OP & Create promise from a call argument \tabularnewline
+CALL.OP & Do function call \tabularnewline
+CALLBUILTIN.OP & Call builtin function \tabularnewline
+CALLSPECIAL.OP & Call special function \tabularnewline
+MAKECLOSURE.OP & Create closure (with environment) \tabularnewline
+ADD.OP & Arithmetic binary plus \tabularnewline
+LT.OP & Relational less than \tabularnewline
+STARTASSIGN.OP & Prepare for subassignment \tabularnewline
+ENDASSIGN.OP & Clean up after subassignment \tabularnewline
+ISNULL.OP & Test if top of stack is \rinline/NULL/ \tabularnewline
+COLON.OP & Create integer sequence \tabularnewline
+\bottomrule
+\end{longtable}
+
+
+
+\todo[compiler, constant folding, cenv, context, inlining]
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \section{Why is R hard to optimize}
 
-Here the source was mainly \autocite{inferno} and \autocite{design} and \autocite{hadley}.
+\todo \autocite{inferno} \autocite{design} \autocite{hadley}
+\todo[cite: https://cran.r-project.org/doc/manuals/R-lang.html
+section 6 and 2, hadley]
 
-Firstly, R is not the fastest language out there. Of course, being an intepreted language, one cannot expect the performance of lagnuages like C that are compiled to native machine code. This is because during runtime, there is the inherent overhead of managing the virtual machine that executes a given program. In the case of AST interpreter, this overhead is \todo
+Firstly, R is not the fastest language out there. Of course, being an intepreted language, one cannot expect the performance of lagnuages like C that are compiled to native machine code. This is because during runtime, there is the inherent overhead of managing the virtual machine that executes a given program. For the AST interpreter, it entails walking the tree again with every evaluation of an expression. For the BC compiler and interpreter, there is first the compilation itself (which only happens once), but then dispatching of the instructions needs to be done in the interpreter loop.
 
-R is a very dynamic language and gives the programmer a very high degree of freedom. 
+Another matter is that R is inherently single threaded, it is very memory hungry (as it needs a lot of metadata about its internal structures) and all memory is allocated on the heap and managed and garbage collected by the runtime system of R.
 
-\todo[cite: https://cran.r-project.org/doc/manuals/R-lang.html section 6 and 2]
+Just to give an example, incrementing a variable in C is done in one machine instruction (and possibly one memory store if the variable is not allocated in a register). An AST interpreter has to navigate a tree data structure in memory which, for this example, would probably consist of at least one assign node, two variable lookup nodes, one constant node and one arithmetic operation node. For the bytecode interpreter, the amount of work is considerably reduced, but still there is the large gap between machine instructions and the same bytecode instructions executed by a virtual machine (that must, for example, perform all type checking and possibly type promotions dynamically at runtime).
 
-\todo[
-dynamic, user can do anything
-non-standard evaluation
-introspection
-vectorized
-subsetting, subassignment
-delayed evaluation
-two different object systems
-r inferno some examples
-builtin, special, closures]
+On top of that, R is a very dynamic language that gives a very high degree of freedom to a programmer. The design decisions behind R have an impact on performance. At runtime, users have full access to all of the program data and representation. This means, for example, that not only the values of a function's arguments can be accessed, but also the code that is used to compute them.
 
+Even though R did not go as far as Lisp which makes no distinctions between programs and data, it provides ways to transform code into text and the other way round (namely, the functions \rinline/parse/ and \rinline/deparse/).
 
-\todo[first: dynamic nature, second: design desicions]
-\todo[
-vanilla r uses standard repl and ast interpreter
-single threaded
-runtime type checking, coercion
-memory hungry, garbage collection, everything on stack, a lot of metadata and attributes
-everything is function call
-written in c, no jit by default, no native jit compiler]
+Non-standard evaluation and metaprogramming are possible by leveraging delayed evaluation and using funcions like \rinline/substitute/ (that returns the parse tree for an unevaluated expression and at the same time possibly modifies it), \rinline/quote/ (that simply returns its argument unevaluated) and \rinline/eval/ (that evaluates an expression in a specified environment). R also provides means for creating embedded domain specific languages (e.g., the formula specification or the ``grammar of graphics'' of ggplot2\todo[about ggplot2]).
+
+Finally, R being the mixture of different paradigms that it is makes it quite difficult to reason about the code and optimize it. Adding together functional style, object systems, laziness, introspection, dynamic evaluation, computation on the language itself, explicit environment manipulation and more creates a very complex result.
+
+Also, R has its semantics defined by its one major implementation (although attempts have been made to formalize the language, e.g. \autocite{design}). This further complicates things as there is no formal description of the language.
