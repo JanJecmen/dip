@@ -17,6 +17,19 @@ R is, as far as programming languages go, very interesting and has some quite un
 
 Functions are, in accordance with functional languages, first-class values, so they can be passed around as call arguments, returned as results of function calls and created dynamically at runtime. R uses lexical scoping (which it adopted from Scheme) and R functions are closures that capture their enclosing environment at creation time. Arguments are passed by value (although a variant of reference counting is implemented, so that deep copies are only created as needed, e.g., when an object is modified).
 
+Functions are by design anonymous, i.e., they are not named when created. This is unlike many languages (e.g., C or Python) and follows the approach of lambda calculus. Instead of creating named functions, R programmers create anonymous ones and, if they choose so, then use regular assignment to bind them to names. Example can be seen in listing \ref{lst:anon-func}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:anon-func}Anonymous function}
+  \begin{rcode}
+> (function(x) x + 1)(2)
+[1] 3
+> f <- function(x) x + 1
+> f(2)
+[1] 3
+  \end{rcode}
+\end{listing}
+
 Interestingly, everything that happens in R is in fact a function call. This goes as far as arithmetic operators being just syntactic sugar for function calls, as can be seen in listing \ref{lst:arith-plus}\footnote{As a side note, backticks are used it R to denote symbols (i.e., names). Because some symbols have special syntactic meaning (like the \rinline/`+`/ being an infix binary operator), they can cause a syntax error if they appear unquoted in a place where the parser does not expect them.}. In this spirit, even assigning into a variable, evaluating a block of code inside curly brackets or grouping expressions with parentheses translate to calling the respective functions.
 
 \begin{listing}[htbp]
@@ -35,7 +48,7 @@ function (e1, e2)  .Primitive("+")
 
 All actual arguments to a function are lazy evaluated by default. When applying a closure, parameters are wrapped in promises. A~promise is simply an object that contains the unevaluated expression and an environment in which the expression should be evaluated. Promises are only evaluated when the value is actually needed (which is called forcing the promise). Also, once the promise is forced, it remembers the result, so that subsequent uses of the value do not evaluate the expression again.
 
-This is demonstrated in listing \ref{lst:prom-lazy}, where the function in question only evaluates its first argument and does not touch the second. For the first call, the block of code in the curly brackets is never executed and so the side-effect of printing a greeting does not happen. In the second call, the arguments are swapped, and the side-effect can be observed in the output. It is possible to pass a~block of code as a~function argument, since the \rinline/`{`/ is bound to a function that sequentially evaluates all its arguments and returns as its result the value of the last expression (or \rinline/NULL/ if no expressions are passed in).
+Delayed evaluation is demonstrated in listing \ref{lst:prom-lazy}, where the function in question only evaluates its first argument and does not touch the second. For the first call, the block of code in the curly brackets is never executed and so the side-effect of printing a greeting does not happen\footnote{\rinline/cat/ is short for \emph{Concatenate and Print}}. In the second call, the arguments are swapped, and the side-effect can be observed in the output. It is possible to pass a~block of code as a~function argument, since the \rinline/`{`/ is bound to a function that sequentially evaluates all its arguments and returns as its result the value of the last expression (or \rinline/NULL/ if no expressions are passed in).
 
 \begin{listing}[htbp]
   \caption{\label{lst:prom-lazy}Promise lazy evaluation}
@@ -69,9 +82,11 @@ These features highlight the functional approach of R by minimizing side-effects
   \end{rcode}
 \end{listing}
 
-The basic data type in R is an atomic vector. Vectors are collections of homogeneous values (i.e., a given vector can only hold objects of one particular type), that preserve the order of their elements. R also provides a list type which is heterogeneous. Higher-dimensional types such as matrices and data frames, as well as objects, are built from vectors and lists under the hood. In R there are no scalar types, as scalar values, such as individual numbers and strings, are considered to be vectors of length one.
+The basic data type in R is an atomic vector. Vectors are collections of homogeneous values (i.e., a given vector can only hold objects of one particular type), that preserve the order of their elements. R also provides a list type which is heterogeneous. Higher-dimensional types such as matrices and data frames, as well as objects, are built from vectors and lists under the hood. Vectors can be created in R by calling the function \rinline/c/ (the name stands for \emph{combine}).
 
 Atomic vectors can have one of these six types: logical, integer, double, character, complex and raw. Since R targets data analysis, a special ``not~available'' value \rinline/NA/ is provided for these. Because all values in a vector must be of the same type, R performs coercion when an attempt is made to combine vectors of different types. In listing \ref{lst:coercion}, combining a numeric vector with a character vector results in a character vector, and summing a logical vector coerces to integers (\rinline/TRUE/ becoming \rinline/1/ and \rinline/FALSE/ becoming \rinline/0/).
+
+In R there are no scalar types, as scalar values, such as individual numbers and strings, are considered to be vectors of length one. This holds for character vectors, too, which can cause confusion if one expects C-like behavior of strings and tries subscripting, because in R the subscript belongs to the vector that holds the string and not the string itself\footnote{In such a case, one needs to use the \rinline/substr/ function.}.
 
 \begin{listing}[htbp]
   \caption{\label{lst:coercion}Coercion to the most flexible type}
@@ -109,7 +124,7 @@ In numeric(10) + 1:3 :
   \end{rcode}
 \end{listing}
 
-In R, every object can have arbitrary attributes associated with its data. Attributes are basically a hidden map that assigns names to values. Some of the most important attributes are names (a character vector that assigns names to elements), dimensions (a vector specifying the dimensions and thus effectively distinguishing vectors from matrices and arrays) and class (for implementing one of R's object systems). Attributes are used a lot in R for many purposes and extensions as they provide a way of encoding arbitrary additional metadata for objects. As an example, in listing \ref{attributes} a vector of 4 elements is created, then changed into a 2x2 matrix and finally changed back to vector with named elements.
+In R, every object can have arbitrary attributes associated with its data. Attributes are basically a hidden map that assigns names to values. Some of the most important attributes are names (a character vector that assigns names to elements), dimensions (a vector specifying the dimensions and thus effectively distinguishing vectors from matrices and arrays) and class (for implementing one of R's object systems). Attributes are used a lot in R for many purposes and extensions as they provide a way of encoding arbitrary additional metadata for objects. As an example, in listing \ref{lst:attributes} a vector of 4 elements is created, then changed into a 2 by 2 matrix\footnote{Here it can be seen here that R uses comumn-major order for storing the elements.} and finally changed back to vector (that also has its elements named).
 
 \begin{listing}[htbp]
   \caption{\label{lst:attributes}Object attributes}
@@ -130,13 +145,129 @@ a b c d
   \end{rcode}
 \end{listing}
 
-\todo[data frames?]
+True to its dynamic nature, R is very liberal in handling arguments in function calls. The language supports both positional and named matching of arguments, as well as default argument values. R even understands when the argument names are abbreviated, as long as the arguments can still be uniquely matched.
 
-\todo[objects]
+Moreover, R lets users call functions and not provide the specified arguments. It is only while executing the function body that the missing arguments may or may not cause an error. Variable number of arguments is supported as well by using the ellipsis \rinline/`...`/. The ellipsis in an argument list matches any number of arguments, and later in the fucntion body refers to the list of matched arguments. Special symbols can be used to access the ellipsis arguments, such as \rinline/`..1`/, \rinline/`..2`/, etc. Argument handling is demonstrated in listing \ref{lst:args}.
 
-\todo[subsetting, subassignment]
+\begin{listing}[htbp]
+  \caption{\label{lst:args}Argument handling}
+  \begin{rcode}
+> f <- function(a, b, a.very.long.argument.name)
++     a.very.long.argument.name
+> f(1, 2, 3)
+[1] 3
+> f(a = 3)
+Error in f(a = 3) : 
+  argument "a.very.long.argument.name" is missing, with no default
+> f(a. = 3)
+[1] 3
+>
+> f <- function(a, b) a
+> # b is not required
+> f(1)
+[1] 1
+> # a is required
+> f()
+Error in f() : argument "a" is missing, with no default
+> f(b = 2)
+Error in f(b = 2) : argument "a" is missing, with no default
+>
+> f <- function(...) ..2
+> f()
+Error in f() : the ... list does not contain 2 elements
+> f(1, 2, 3, 4, 5)
+[1] 2
+  \end{rcode}
+\end{listing}
 
-\todo[ellipsis, named arguments, missing]
+As was already mentioned, R has not one but three different object systems. The simplest is called \emph{S3} and it uses a class\todo[verb] attribute to implement ad hoc polymorphism (also known as function or operator overloading). It does not have formal classes, but instead uses a special function called a~\emph{generic function} that decides what to call based on the value of the class attribute. A~typical example is printing, where the \rinline/print/ function is generic, its body consists of a call to a dispatcher \rinline/UseMethod("print")/. Specialized versions for different types can be defined, such as \rinline/print.data.frame/ for data frames, or, given an object with class set to \rinline/"foo"/, \rinline/print.foo/ (as is shown in listing \ref{lst:s3}).
+
+\begin{listing}[htbp]
+  \caption{\label{lst:s3}S3 object system}
+  \begin{rcode}
+> x <- list()
+> class(x) <- "foo"
+> print(x)
+list()
+attr(,"class")
+[1] "foo"
+> print.foo <- function(...) cat("Printing foo!\n")
+> print(x)
+Printing foo!
+  \end{rcode}
+\end{listing}
+
+\emph{S4} is a more formal system than \emph{S3}, and it allows for true class definitions, describing class representation and inheritance. It has multiple dispatch, which means that dispatchers can pick which method to call based on multiple arguments. R also has \emph{Reference classes}, that implement message passing style and their objects are modified in place (as opposed to the standard pass by value semantics).
+
+An important and powerful feature of R is its subsetting and subassignment mechanics. Parts of objects can be retrieved and even changed by the operators \rinline/`[`/, \rinline/`[[`/ and \rinline/`$`/. These behave differently for different types of objects.
+
+The first version is a general subset function that supports all kinds of indexing\footnote{As opposed to many languages (e.g., C and Python), R starts indexing elements from 1 instead of 0.}. For example, integer vector specifies which elements to get and in what order, even allowing duplication. If negative indices are used, these elements are omitted from the result. Logical vectors can be used to select only elements at positions where \rinline/TRUE/ occurs. If the object is named, character vectors can be used to select by name. In combination with assignment (and superassignment), objects can be modified. Subsetting works also for higher-dimensional structures by simply providing indices for each dimension, separated by commas. Some examples are in listing \ref{lst:subset1}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:subset1}Basic subsetting / subassignment}
+  \begin{rcode}
+> x <- 101:110
+> x
+ [1] 101 102 103 104 105 106 107 108 109 110
+> x[c(3, 5, 1, 1)]
+[1] 103 105 101 101
+> x[-c(2, 3, 8)]
+[1] 101 104 105 106 107 109 110
+> x > 105
+ [1] FALSE FALSE FALSE FALSE FALSE  TRUE  TRUE  TRUE  TRUE  TRUE
+> x[x > 105]
+[1] 106 107 108 109 110
+> x[x %% 2 == 0] <- NA
+> x
+ [1] 101  NA 103  NA 105  NA 107  NA 109  NA
+> m <- matrix(1:9, ncol = 3)
+> m
+     [,1] [,2] [,3]
+[1,]    1    4    7
+[2,]    2    5    8
+[3,]    3    6    9
+> m[-2, 2:3]  # omit row 2 and get columns 2 to 3
+     [,1] [,2]
+[1,]    4    7
+[2,]    6    9
+  \end{rcode}
+\end{listing}
+
+The second version, \rinline/`[[`/, returns only a single element of an object, and is used to get elements out of a list. The \rinline/`$`/ is then just a shorthand for \rinline/`[[`/ when used with character subsetting (i.e., the dollar version expects a name, and it need not be quoted). Also, the dollar operator does partial matching, similar to how function argument names are handled. These operators are demonstrated in listing \ref{lst:subset2}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:subset2}Other subsetting operators}
+  \begin{rcode}
+> l <- list(sq = 1:3, str = "a", bool = FALSE, na = NA)
+> l
+$sq
+[1] 1 2 3
+
+$str
+[1] "a"
+
+$bool
+[1] FALSE
+
+$na
+[1] NA
+
+> l[1]
+$sq
+[1] 1 2 3
+
+> typeof(l[1])
+[1] "list"
+> l[[1]]
+[1] 1 2 3
+> typeof(l[[1]])
+[1] "integer"
+> l[["bool"]]
+[1] FALSE
+> l$bool
+[1] FALSE
+  \end{rcode}
+\end{listing}
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
@@ -256,6 +387,8 @@ bytecode encoded in vector of ints, plus per object constant pool]
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \section{Why is R hard to optimize}
+
+Here the source was mainly \autocite{inferno} and \autocite{design} and \autocite{hadley}.
 
 Firstly, R is not the fastest language out there. Of course, being an intepreted language, one cannot expect the performance of lagnuages like C that are compiled to native machine code. This is because during runtime, there is the inherent overhead of managing the virtual machine that executes a given program. In the case of AST interpreter, this overhead is \todo
 
