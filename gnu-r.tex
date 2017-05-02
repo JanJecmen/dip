@@ -411,9 +411,27 @@ COLON.OP & Create integer sequence \tabularnewline
 \bottomrule
 \end{longtable}
 
+The compiler itself has in its heart the recursive function \rinline/cmp/ that visits the AST of a given expression. It passes along a code buffer object (that contains the instruction stream and the constant pool) and a context object. When generating code, it writes into the code buffer, and uses the context to decide \todo[cntxt]
 
+The objects that are not self-evaluating are funcion calls, variable references, bytecode objects and promises. The rest is treated as being a constant. Bytecode objects and promises should not appear as literals in code, so they cause a compilation error if encountered.
 
-\todo[compiler, constant folding, cenv, context, inlining]
+The constant objects are compiled by inserting the object into constant pool and generating a load instruction such as \rinline/LDCONST.OP/ (that takes as an argument the index into the constant pool of the object).
+
+For variable references, the symbol is inserted into the constant pool and then a \rinline/GETVAR.OP/ instruction is emitted (although there is a special instruction for the ``dot-dot-names'' such as \rinline/..1/).
+
+Everything else is a function call. When compiling a function call, multiple steps are required. First, the function to call has to be compiled. Usually this involves emitting an instruction that looks up the function by its name (similar to variables, but using the \rinline/GETFUN.OP/ instead), but 
+
+In the interpreter there are four types of objects that are not treated as constants, i.e. as
+evaluating to themselves: function calls of type "language", variable references of type "symbol",
+promises, and byte code objects. Neither promises nor byte code objects should appear as literals
+in code so an error is signaled for those.
+
+\todo[constant folding]
+
+\subsection{BC compiler assumptions\laber{assumptions}}
+
+\todo[cenv]
+When dealing with a language as dynamic as R, one needs to be very careful to distinguish what happens when. For example, in C, a program is compiled ahead of time into a binary executable format, and this binary is later executed independently of the compilation process. This is true for R as well, in the sense that compilation has to come before execution, however, both steps now take place at the runtime of the virtual machine of R. That means that the state of the runtime system that the compiler sees can be changed in the window of time between compile time and running time of the bytecode.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
