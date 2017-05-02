@@ -33,10 +33,10 @@ for (i in seq_along(files)) {
 ggplot(combined, aes(x=reorder(version, i), y=time, color=experiment, group=interaction(benchmark, experiment))) +
   stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
   facet_wrap(~benchmark) +
-  scale_color_brewer(palette="Paired") +
+  scale_color_brewer(palette="Paired", name="Experiment") +
   theme(axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1)) +
-  xlab("revision") +
-  ylab("time [s]") +
+  xlab("Revision") +
+  ylab("Time [s]") +
   theme(text = element_text(family="DejaVu Sans"))
 
 ggsave(file.path(args[[1]], "speedup_history.pdf"), device=cairo_pdf)
