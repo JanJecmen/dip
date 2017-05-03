@@ -411,27 +411,24 @@ COLON.OP & Create integer sequence \tabularnewline
 \bottomrule
 \end{longtable}
 
-The compiler itself has in its heart the recursive function \rinline/cmp/ that visits the AST of a given expression. It passes along a code buffer object (that contains the instruction stream and the constant pool) and a context object. When generating code, it writes into the code buffer, and uses the context to decide \todo[cntxt]
+The compiler itself has in its heart the recursive function \rinline/cmp/ that visits the AST of a given expression. It passes along a code buffer object (that contains the instruction stream and the constant pool) and a context object. When generating code, it writes into the code buffer, and uses the context to guide the compilation (it carries along infromation such as whether the expression should be followed by a return, if the result is ignored or not or if the expression is in a loop).
 
-The objects that are not self-evaluating are funcion calls, variable references, bytecode objects and promises. The rest is treated as being a constant. Bytecode objects and promises should not appear as literals in code, so they cause a compilation error if encountered.
+The expressions that are not self-evaluating are funcion calls, variable references, bytecode objects and promises. The rest is treated as being a constant. Bytecode objects and promises should not appear as literals in code, so they cause a compilation error if encountered.
 
-The constant objects are compiled by inserting the object into constant pool and generating a load instruction such as \rinline/LDCONST.OP/ (that takes as an argument the index into the constant pool of the object).
+Constant expressions are compiled by inserting the object into constant pool and generating a load instruction such as \rinline/LDCONST.OP/ (that takes as an argument the index into the constant pool of the object).
 
 For variable references, the symbol is inserted into the constant pool and then a \rinline/GETVAR.OP/ instruction is emitted (although there is a special instruction for the ``dot-dot-names'' such as \rinline/..1/).
 
-Everything else is a function call. When compiling a function call, multiple steps are required. First, the function to call has to be compiled. Usually this involves emitting an instruction that looks up the function by its name (similar to variables, but using the \rinline/GETFUN.OP/ instead), but 
+Everything else is a function call. When compiling a function call, multiple steps are required. First, the function to call has to be compiled. Usually this involves emitting an instruction that looks up the function by its name, but sometimes also compiling an expression that evaluates to a function. Then the arguments are compiled and code that prepares them on the stack is emitted. Finally, the call instruction is generated.
 
-In the interpreter there are four types of objects that are not treated as constants, i.e. as
-evaluating to themselves: function calls of type "language", variable references of type "symbol",
-promises, and byte code objects. Neither promises nor byte code objects should appear as literals
-in code so an error is signaled for those.
+Since the compiler uses only a single pass, it has limited options of optimizing the generated code. The only optimization it performs, apart from those described in the next section, is constant folding. This is a very useful transformation that attempts to replace subtrees of an expression's AST that are constant (not only self-evaluating, but rather always evaluating to the same result) with the constant result.
 
-\todo[constant folding]
+Currently, constant folding is performed (depending on compiler options) on ``small'' expressions that consist of self-evaluating expressions, select base variables (like \rinline/pi/) and calls to some select base math functions (like \rinline/sqrt/ or \rinline/sin/). In the current version, no deoptimization is possible.
 
-\subsection{BC compiler assumptions\laber{assumptions}}
+\subsection{BC compiler assumptions\label{assumptions}}
 
-\todo[cenv]
-When dealing with a language as dynamic as R, one needs to be very careful to distinguish what happens when. For example, in C, a program is compiled ahead of time into a binary executable format, and this binary is later executed independently of the compilation process. This is true for R as well, in the sense that compilation has to come before execution, however, both steps now take place at the runtime of the virtual machine of R. That means that the state of the runtime system that the compiler sees can be changed in the window of time between compile time and running time of the bytecode.
+\todo[cenv] \todo[assumptions] \todo[inlining during function call]
+% When dealing with a language as dynamic as R, one needs to be very careful to distinguish what happens when. For example, in C, a program is compiled ahead of time into a binary executable format, and this binary is later executed independently of the compilation process. This is true for R as well, in the sense that compilation has to come before execution, however, both steps now take place at the runtime of the virtual machine of R. That means that the state of the runtime system that the compiler sees can be changed in the window of time between compile time and running time of the bytecode.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 

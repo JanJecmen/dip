@@ -2,15 +2,55 @@
 
 In this chapter I~will discuss in detail the changes made to RIR in an attempt to bring it up to speed with GNU R byte-compiled code.
 
-...
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
-\section{Refactoring RIR interpreter}
+\section{Instruction set extensions}
+
+GNU R bytecode compiler assumes certain invariants about the code when compiling, as was described in section \ref{assumptions}. Of course, the instruction set of the default compiler reflects this. In fact, having specialized bytecode instructions for specific tasks is where the compiler gets most of its speedups. Specifically, not inlining the primitive R functions of type \todo[verb]special causes the call mechanism to fall back to the same C routines that the AST interpreter uses, where the expression tree is examined and parts of it evaluated as needed.
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\section{Compiler modifications}
+
+
+
+\begin{listing}[htbp]
+  \caption{\label{lst:local-break}Safe \rinline/break/}
+  \begin{rcode}
+function(n) {
+    repeat {
+        if (n <= 0) break
+        n <- n - 1
+    }
+}
+  \end{rcode}
+\end{listing}
+
+\begin{listing}[htbp]
+  \caption{\label{lst:non-local-break}Context for \rinline/break/ required}
+  \begin{rcode}
+function(n) {
+    repeat {
+        foo(if (n <= 0) break else 3)
+        n <- n - 1
+    }
+}
+  \end{rcode}
+\end{listing}
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\section{Interpreter refactoring}
 
 As it turned out, a lot of speedup could be gained by changing the RIR bytecode interpreter. 
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \todo[to compiler, to ir, to interpreter, use code snippets, describe microbenchmarks, theory (threaded code...)]
 
 \todo[everywhere: motivation - how it helped in microbenchmarks, then how in real]
+
+\todo[relational operators, fast paths for logical args, unary plus minus not, loop contexts, bc cleanup, colon, superassing, inlining of instructions in main loop, threaded code, inline stack funcs, loops refactor, disable guardfuns]
 
 \begin{listing}[htbp]
   \caption{\label{xxx}\todo[write listing caption] microbenchmark (run with jit enable 2)}
@@ -27,5 +67,3 @@ for (x in 1:15) t <- c(t, system.time(f())[[3]])
 mean(t[5:15])  # only include measurments after warmup
   \end{minted}
 \end{listing}
-
-\todo[relational operators, fast paths for logical args, unary plus minus not, loop contexts, bc cleanup, colon, superassing, inlining of instructions in main loop, threaded code, inline stack funcs, loops refactor, disable guardfuns]
