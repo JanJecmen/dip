@@ -30,7 +30,7 @@ before$time <- before$time / gnur$time
 tmp <- mean(before$time)
 before$Status <- "before"
 before$benchmark <- factor(before$benchmark, levels=c(levels(before$benchmark), "AVERAGE"))
-before <- rbind(before, list("AVERAGE", tmp, "mean before"))
+before <- rbind(before, list("AVERAGE", tmp, "avg before"))
 before$benchmark <- as.ordered(before$benchmark)
 
 after <- after[grepl("3 R_ENABLE_JIT=2 rir", after$experiment),]
@@ -40,13 +40,14 @@ after$time <- after$time / gnur$time
 tmp <- mean(after$time)
 after$Status <- "final"
 after$benchmark <- factor(after$benchmark, levels=c(levels(after$benchmark), "AVERAGE"))
-after <- rbind(after, list("AVERAGE", 0, "mean final"))
+after <- rbind(after, list("AVERAGE", 0, "avg final"))
 after$benchmark <- as.ordered(after$benchmark)
 
 ordering <- after$benchmark[order(reorder(after$benchmark, -after$time))]
 after[nrow(after),"time"] <- tmp
 
 d <- rbind(before, after)
+d$Status <- factor(d$Status, levels = c("before", "final", "avg before", "avg final"))
 
 gnur$benchmark <- factor(gnur$benchmark, levels=c(levels(gnur$benchmark), "AVERAGE"))
 gnur <- rbind(gnur, list("AVERAGE", 1))
@@ -58,7 +59,7 @@ plot +
   geom_line(data=gnur, aes(x = benchmark, y = time, group = 1)) + 
   geom_bar(aes(x = benchmark,
                y = time,
-               order = sort(Status),
+             #  order = c("before", "final", "avg before", "avg final"),
                fill = Status),
            stat="identity",
            position=position_dodge(),
