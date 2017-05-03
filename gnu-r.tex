@@ -62,7 +62,7 @@ Hello
   \end{rcode}
 \end{listing}
 
-These features highlight the functional approach of R by minimizing side-effects. However, R supports assignment\footnote{An interesting quirk is R's left to right assignment: the code \rinline/1 -> x/ assigns 1 to x and is equivalent to \rinline/x <- 1/.} which enables programmers to change a function's local state by modifying its bindings and thus the imperative programming style. Also, the superassignment operator \rinline/`<<-`/ makes it possible to change non-local bindings (as shown in listing \ref{lst:superassign}) and thus brings the side-effects back into play.
+These features highlight the functional approach of R by minimizing side-effects. However, R supports assignment\footnote{An interesting quirk is R's left to right assignment: the code \rinline/1 -> x/ assigns 1 to x and is equivalent to \rinline/x <- 1/. It has nothing to do with C++ structure dereference, since R does not have references.} which enables programmers to change a function's local state by modifying its bindings and thus the imperative programming style. Also, the superassignment operator \rinline/`<<-`/ makes it possible to change non-local bindings (as shown in listing \ref{lst:superassign}) and thus brings the side-effects back into play.
 
 \begin{listing}[htbp]
   \caption{\label{lst:superassign}Superassignment}
@@ -427,8 +427,34 @@ Currently, constant folding is performed (depending on compiler options) on ``sm
 
 \subsection{BC compiler assumptions\label{assumptions}}
 
-\todo[cenv] \todo[assumptions] \todo[inlining during function call]
+\todo[cenv] \todo[assumptions] \todo[inlining during function call] \todo[call always expensive]
 % When dealing with a language as dynamic as R, one needs to be very careful to distinguish what happens when. For example, in C, a program is compiled ahead of time into a binary executable format, and this binary is later executed independently of the compilation process. This is true for R as well, in the sense that compilation has to come before execution, however, both steps now take place at the runtime of the virtual machine of R. That means that the state of the runtime system that the compiler sees can be changed in the window of time between compile time and running time of the bytecode.
+
+These assumptions, of course, do not necessarily hold all the time, as demonstrated in listing \ref{lst:break-plus}. Here, after changing the binding of \rinline/`+`/, the compiled function gives wrong result with no warning, since it inlined the addition and it does not get recompiled.
+
+That said, this is a very bad programming practice and should be avoided anyway.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:break-plus}Breaking the compiler}
+  \begin{rcode}
+> `+`
+function (e1, e2)  .Primitive("+")
+> f <- function(n) n + 1
+> g <- compiler::cmpfun(function(n) n + 1)
+> f(1)
+[1] 2
+> g(1)
+[1] 2
+> `+` <- `-`
+> f(1)
+[1] 0
+> g(1)
+[1] 2
+> compiler::disassemble(g)
+list(.Code, list(8L, GETVAR.OP, 1L, LDCONST.OP, 2L, ADD.OP, 0L, 
+    RETURN.OP), list(n + 1, n, 1))
+  \end{rcode}
+\end{listing}
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
