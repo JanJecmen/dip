@@ -359,7 +359,9 @@ The bytecode objects produced by the compiler consist of two components. The fir
 
 The compiler can be used explicitly to compile an expression or a closure. However, a more convenient way is to enable just-in-time compilation (JIT). Doing so causes the AST interpreter to invoke the compiler automatically when calling a closure that is not yet compiled.
 
-The compiler comes with a disassembler that makes it possible to inspect the bytecode of an object, as is shown in listing \ref{lst:disasm}. The object is printed as a list that starts with the \rinline/.Code/ symbol, then follows the code vector (with the opcodes decoded), and last comes the constant pool. The integers in the code that are not instructions represent arguments to the instructions (the first element is an exception, as it encodes the version of the BC stored in the given object).
+The compiler comes with a disassembler that makes it possible to inspect the bytecode of an object, as is shown in listing \ref{lst:disasm}\footnote{The output was reformatted for the sake of readability.}. The object is printed as a list that starts with the \rinline/.Code/ symbol, then follows the code vector (with the opcodes decoded), and last comes the constant pool.
+
+The integers in the code that are not instructions represent immediate arguments to the instructions (the first element being an exception, as it encodes the version of the BC stored in the given object). In this particular instance, all immediates represent constant pool indices.
 
 \begin{listing}[htbp]
   \caption{\label{lst:disasm}Disassembling a BC object}
@@ -369,8 +371,16 @@ The compiler comes with a disassembler that makes it possible to inspect the byt
 function(n) n + 1
 <bytecode: 0x367ee40>
 > compiler::disassemble(f)
-list(.Code, list(8L, GETVAR.OP, 1L, LDCONST.OP, 2L, ADD.OP, 0L, 
-    RETURN.OP), list(n + 1, n, 1))
+list(.Code,
+     list(8L,
+          GETVAR.OP, 1L,
+          LDCONST.OP, 2L,
+          ADD.OP, 0L,
+          RETURN.OP),
+     list(n + 1,
+          n,
+          1)
+)
   \end{rcode}
 \end{listing}
 
@@ -427,34 +437,45 @@ Currently, constant folding is performed (depending on compiler options) on ``sm
 
 \subsection{BC compiler assumptions\label{assumptions}}
 
-\todo[cenv] \todo[assumptions] \todo[inlining during function call] \todo[call always expensive]
-% When dealing with a language as dynamic as R, one needs to be very careful to distinguish what happens when. For example, in C, a program is compiled ahead of time into a binary executable format, and this binary is later executed independently of the compilation process. This is true for R as well, in the sense that compilation has to come before execution, however, both steps now take place at the runtime of the virtual machine of R. That means that the state of the runtime system that the compiler sees can be changed in the window of time between compile time and running time of the bytecode.
+When dealing with a language as dynamic as R, one needs to be very careful to distinguish compile time from execution time, and in particular to realize that between the two there is a window during which the state of the program can change.
 
-These assumptions, of course, do not necessarily hold all the time, as demonstrated in listing \ref{lst:break-plus}. Here, after changing the binding of \rinline/`+`/, the compiled function gives wrong result with no warning, since it inlined the addition and it does not get recompiled.
+It was explained earlier (see listing \ref{lst:arith-plus}) that everything that happens in R is a function call, even constructs that have a special syntactic meaning, like \rinline/if/, \rinline/while/, \rinline/break/ etc.
 
-That said, this is a very bad programming practice and should be avoided anyway.
+Furthermore, R uses lexical scoping. When the user starts an interactive session, they work in the global environment, which is the lowest environment in the hierarchy of environments known as the search path. The base environment (where all the default R bindings are defined) as well as any loaded packages are its ancestors in the search path. It is therefore possible to shadow the default bindings by creating new bindings that are found earlier on the search path.
+
+Taking all this into consideration, to be conservative the compiler would have to compile everything as a function call, and then, at runtime, look up the current value of the callee binding and perform the call. Unfortunately, this almost completely negates the benefits of having a compiler at all, because the call is exactly what the AST interpreter does.
+
+For this reason, the compiler assumes about certain functions that their meaning does not change in the meantime between compilation and execution. This is quite a reasonable assumption, since bindings for these special and builtin functions are rarely redefined, and it allows them to be properly compiled.
+
+As a downside, the compiler produces code that is incorrect if the assumptions do not hold. Moreover, the bytecode interpreter has no way of telling that the code became incorrect, so it just executes it without any warning or error. To demonstrate, consider the code in listing \ref{lst:break-plus}\footnote{Note: JIT needs to be turned off for this.}.
 
 \begin{listing}[htbp]
   \caption{\label{lst:break-plus}Breaking the compiler}
   \begin{rcode}
-> `+`
-function (e1, e2)  .Primitive("+")
 > f <- function(n) n + 1
-> g <- compiler::cmpfun(function(n) n + 1)
-> f(1)
-[1] 2
-> g(1)
-[1] 2
+> fc <- compiler::cmpfun(f)
+> c(f(1), fc(1))
+[1] 2 2
 > `+` <- `-`
-> f(1)
-[1] 0
-> g(1)
-[1] 2
-> compiler::disassemble(g)
-list(.Code, list(8L, GETVAR.OP, 1L, LDCONST.OP, 2L, ADD.OP, 0L, 
-    RETURN.OP), list(n + 1, n, 1))
+> c(f(1), fc(1))
+[1] 0 2
   \end{rcode}
 \end{listing}
+
+The reason for this behavior can be seen in listing \ref{lst:disasm-broken} which shows the relevant part of the disassembled \rinline/fc/ function. The \rinline/`+`/ was inlined at compile time (because at the time, it really was an addition). When executing the function for the second time, however, the meaning of \rinline/`+`/ was actually subtraction, and this was not reflected in the bytecode.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:disasm-broken}Reason for the erroneous result}
+  \begin{rcode}
+list(8L,
+     GETVAR.OP, 1L,
+     LDCONST.OP, 2L,
+     ADD.OP, 0L,
+     RETURN.OP)
+  \end{rcode}
+\end{listing}
+
+To reduce the chance of such errors, the compiler keeps track of local and global bindings visible at compile time. If a shadowing is detected the function in question is not inlined.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
