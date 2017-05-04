@@ -10,7 +10,7 @@ The GNU R bytecode compiler assumes certain invariants about the code at compile
 
 The first step was to work through the document \autocite{compiler} by the author of the GNU R compiler. Here, all the inlining done by the compiler by default was determined and experiments were carried out to compare the list to RIR, usually by using the disassemblers of both GNU R and RIR and examining the results of compilation of different calls.
 
-The GNU R compiler has four different levels of the \todo[verb]optimize option (from 0 to 3) and the inlining performed is directly influenced by this setting. The default value is 2, and at this level the compiler inlines functions in the base packages (including those that are syntactically special or considered core language functions) that are not shadowed at compile time (by function arguments and local bindings).
+The GNU R compiler has four different levels of the \todo[verb]optimize option (from zero to three) and the inlining performed is directly influenced by this setting. The default value is two, and at this level the compiler inlines functions in the base packages (including those that are syntactically special or considered core language functions) that are not shadowed at compile time (by function arguments and local bindings).
 
 The inlining happens in both GUN R and RIR when the compiler sees a function call. Both first try to inline calls to special and builtin functions. If the inlining fails, the compilers fall back to the standard call mechanism. Thus the way to speed things up is to add more special cases that handle code that originally went to the default call.
 
@@ -32,9 +32,9 @@ In the following sections, the added instructions are described.
 
 Originally, RIR only had \rinline/`<`/ out of the six usual relational operators. The rest, \rinline/`>`/, \rinline/`<=`/, \rinline/`>=`/, \rinline/`==`/ and \rinline/`!=`/ were being compiled as calls to the builtin C routines, but were added.
 
-All these instructions behave in the same way as arithmetic binary operators do. They take 0 immediate arguments, and instead expect their operands to be left for them at the top of the stack. They pop 2 values off the stack, compute the respective operation, and push 1 result back. They are not pure\todo[why].
+All these instructions behave in the same way as arithmetic binary operators do. They take no immediate arguments, and instead expect their operands to be left for them at the top of the stack. They pop two values off the stack, compute the respective operation, and push one result back. They are not pure\todo[why].
 
-The speedup of adding these operations as standalone instructions lies in the fact that they are quite often called with ``scalar'' arguments, and as was mentioned before, R does not have any scalar values, since they are simply boxed in vectors of length 1.
+The speedup of adding these operations as standalone instructions lies in the fact that they are quite often called with ``scalar'' arguments, and as was mentioned before, R does not have any scalar values, since they are simply boxed in vectors of length one.
 
 If the operands are of a suitable type, and both have a single element, then a fast path can be taken and a call to the standard C builtin avoided. This is possible because internally R uses the C types \cinline/int/ and \cinline/double/, so the actual comparison can be done in plain C.
 
@@ -48,9 +48,9 @@ Also, the relational operators do not need to allocate a new vector for their re
 
 \subsection{Unary operators}
 
-Unary operators are in principle the same as binary. If their operand has length 1 and appropriate type, a fast path can be added.
+Unary operators are in principle the same as binary. If their operand has length one and appropriate type, a fast path can be added.
 
-R has two arithmetic unary operators, \rinline/`+`/ and \rinline/`-`/, and logical negation \rinline/`!`/. These are all rather straightforward, they do not have immediates, pop 1 value and push 1 value.
+R has two arithmetic unary operators, \rinline/`+`/ and \rinline/`-`/, and logical negation \rinline/`!`/. These are all rather straightforward, they do not have immediates, pop one value and push one value.
 
 The logical negation has a fast path for logical scalars in addition to numeric.
 
@@ -58,15 +58,39 @@ The logical negation has a fast path for logical scalars in addition to numeric.
 
 \subsection{The colon operator}
 
-The colon operator \rinline/`:`/ in R provides a convenient way to generate sequences. It is used very often, notably in \todo[verb]for loops as an integer control sequence for the loop variable. The values it generates can be both increasing and decreasing, and they differ by 1. If the starting value is an integer, then the vector also has the integer type.
+The colon operator \rinline/`:`/ in R provides a convenient way to generate sequences. It is used very often, notably in \todo[verb]for loops as an integer control sequence for the loop variable. The values it generates can be both increasing and decreasing, and they differ by one. If the starting value is an integer, then the vector also has the integer type.
 
 \todo
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
-\subsection{Superassign}
+\subsection{Superassignment}
 
-\blind
+Superassignment operator \rinline/`<<-`/ differs from normal assignment in that it works in an enclosing evnironment. Thus, the local environment where superassignment occurs is skipped during the binding lookup. For simple assignment of the form \rinline/x <<- y/, that is all there really is.
+
+The semantics of a complex subset assignment are a bit more complicated, as is shown in listing \ref{lst:subassign} (taken from \autocite{subset}), because it is not a matter of simply creating or changing a binding, but a part of a binding's object has to be extracted and modified first. This model applies recursively for still more complex assignments.
+
+The target object is looked up and stored into a variable \rinline/`*tmp*`/ (it is not recommended to use this name for anything in user code, since, as a side-effect, this will overwrite and then delete it). Then, a function name is constructed from the left-hand side call expression by appending an assignment arrow. The resulting name must refer to a function that takes the same arguments as the original one as well as an additional value argument. This function is called, the right-hand side expression is passed as the value, and its result is stored to the target. Then the temporary binding is removed.
+
+For superassignment the same principles apply, however, the target binding (and only the target binding) is looked up in an enclosing evnironment of the expression.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:subassign}Complex subset assignment}
+  \begin{rcode}
+# The result of this command...
+x[3:5] <- 13:15
+# ... is as if the following had been executed
+`*tmp*` <- x
+x <- "[<-"(`*tmp*`, 3:5, value=13:15)
+rm(`*tmp*`)
+  \end{rcode}
+\end{listing}
+
+Two new bytecode instructions were added for handling the superassignment semantics of looking up bindings. The first is for loading a symbol. It takes one immediate argument, an index into the constant pool where it finds the symbol to look up. It does not pop anything from the stack but pushes one object, the value of the binding. It is not pure\todo. The second is symmetrical to the first, it takes an immediate constant pool index, pops one object, does not push anything and is pure.
+
+These new bytecodes were added to the compiler at a point where it inlines normal assignment and subset assignment.
+
+In the inctructions themselves, the environment for looking up bindings gets replaced with its enclosing environment.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
