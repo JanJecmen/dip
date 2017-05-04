@@ -58,9 +58,9 @@ The logical negation has a fast path for logical scalars in addition to numeric.
 
 \subsection{The colon operator}
 
-The colon operator \rinline/`:`/ in R provides a convenient way to generate sequences. It is used very often, notably in \todo[verb]for loops as an integer control sequence for the loop variable. The values it generates can be both increasing and decreasing, and they differ by one. If the starting value is an integer, then the vector also has the integer type.
+The colon operator \rinline/`:`/ in R provides a convenient way to generate sequences. It is used very often, notably in \todo[verb]for loops as an integer control sequence for the loop variable. The values it generates can be both increasing and decreasing, and they differ by one. If the starting value is an integer, then the vector is also integer.
 
-\todo
+The colon instruction was added that, similarly to arithmetic operators, takes no immediates, expects two operands on the top of the stack and pushed back the resulting sequence object. It is impure. Adding it to the compiler was actually the same as adding an arithmetic binary operator. The instruction itself adds a fast path for combinations of integer and double operands (the doubles apply only if they represent an integer up to a rounding error). This fast path allocates an integer vector of appropriate length and fills it with the sequence values.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
@@ -96,7 +96,7 @@ In the inctructions themselves, the environment for looking up bindings gets rep
 
 \section{Compiler modifications}
 
-
+/todo[loop contexts, loop refactoring, bc cleanup]
 
 \begin{listing}[htbp]
   \caption{\label{lst:local-break}Safe \rinline/break/}
@@ -126,7 +126,11 @@ function(n) {
 
 \section{Interpreter refactoring}
 
-As it turned out, the biggest speedup was gained by refactoring the RIR bytecode interpreter. Originally, the interpreter was quite straightforward. The main evaluator function \cinline/evalRirCode/ contained in its core an infinite loop, and in its body there was a huge switch statement with one case for each bytecode instruction. 
+As it turned out, the biggest speedup was gained by refactoring the RIR bytecode interpreter. Originally, the interpreter was quite straightforward. The main evaluator function \cinline/evalRirCode/ contained in its core an infinite loop, and in its body there was a huge switch statement with one case for each bytecode instruction.
+
+In the cases there was a call to a function that implemented the instruction. These function were defined with the C \cinline/inline/ and \cinline/static/ modifiers, and to make sure the compiler really inlined them, the GNU extension attribute \cinline/__attribute__((always_inline))/ was also specified.
+
+However, something 
 
 \begin{listing}[htbp]
   \caption{\label{lst:}}
@@ -135,25 +139,27 @@ As it turned out, the biggest speedup was gained by refactoring the RIR bytecode
   \end{rcode}
 \end{listing}
 
+/todo[register]
+
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
-\todo[to compiler, to ir, to interpreter, use code snippets, describe microbenchmarks, theory (threaded code...)]
+%\todo[to compiler, to ir, to interpreter, use code snippets, describe microbenchmarks, theory (threaded code...)]
 
-\todo[everywhere: motivation - how it helped in microbenchmarks, then how in real]
+%\todo[everywhere: motivation - how it helped in microbenchmarks, then how in real]
 
-\todo[relational operators, fast paths for logical args, unary plus minus not, loop contexts, bc cleanup, colon, superassing, inlining of instructions in main loop, threaded code, inline stack funcs, loops refactor, disable guardfuns]
+%\todo[relational operators, fast paths for logical args, unary plus minus not, loop contexts, bc cleanup, colon, superassing, inlining of instructions in main loop, threaded code, inline stack funcs, loops refactor, disable guardfuns]
 
-\begin{listing}[htbp]
-  \begin{rcode}
-f <- function() {
-    i <- 10000000L
-    while (i > 0) {
-        i <- i - 1
-    }
-}
-system.time(f())[[3]]  # jit everything
-t <- c()
-for (x in 1:15) t <- c(t, system.time(f())[[3]])
-mean(t[5:15])  # only include measurments after warmup
-  \end{rcode}
-\end{listing}
+% \begin{listing}[htbp]
+%   \begin{rcode}
+% f <- function() {
+%     i <- 10000000L
+%     while (i > 0) {
+%         i <- i - 1
+%     }
+% }
+% system.time(f())[[3]]  # jit everything
+% t <- c()
+% for (x in 1:15) t <- c(t, system.time(f())[[3]])
+% mean(t[5:15])  # only include measurments after warmup
+%   \end{rcode}
+% \end{listing}

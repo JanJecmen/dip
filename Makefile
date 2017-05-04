@@ -17,6 +17,9 @@ verbose: .FORCE
 MT_cover.pdf: .FORCE
 	@arara MT_cover
 
+print: MT_Jecmen_Jan_2017.pdf
+	@cpdf MT_Jecmen_Jan_2017.pdf 3-end -o MT_Jecmen_Jan_2017_print.pdf
+
 clean:
 	@git clean -Xdf
 
