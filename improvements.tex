@@ -12,37 +12,75 @@ Finally, the RIR interpreter loop itself was refactored to run more efficiently,
 
 \section{Instruction set extensions}
 
-The GNU R bytecode compiler assumes certain invariants about the code at compile time, as was described in section \ref{assumptions}. Of course, the instruction set of the default compiler reflects this. In fact, having specialized bytecode instructions for specific tasks is where the compiler gets most of its speedups. Specifically, not inlining the primitive R functions of type \emph{special} causes the call mechanism to fall back to the same C routines that the AST interpreter uses, where the expression tree is examined and parts of it are evaluated as needed.
+The GNU R bytecode compiler assumes certain invariants about the code at compile time, as was described in section \ref{assumptions}. Of course, the instruction set of the default compiler reflects this. In fact, having specialized bytecode instructions for specific tasks is where the compiler gets most of its speedups.
 
-% nechapu tu navaznost, jakoze: GNUR assumes invariants -> this is reflected in BC design (ok) -> specialized bytecodes give it most speedup (ok) -> not inlining specials calls the same stuff as AST (tady nechapu tu specifically navaznost... 
+The first step was to work through the document \autocite{compiler} by the author of the GNU R compiler. Here, all the inlining done by default by the compiler was determined and experiments were carried out to compare the list to RIR, usually by using the disassemblers of both GNU R and RIR, examining the results of compilation of different calls and studying the C source codes.
 
-The first step was to work through the document \autocite{compiler} by the author of the GNU R compiler. Here, all the inlining done by the compiler by default was determined and experiments were carried out to compare the list to RIR, usually by using the disassemblers of both GNU R and RIR and examining the results of compilation of different calls.
+The GNU R compiler has four different levels of the \emph{optimize} option (from 0 to 3) and the amount of inlining performed is directly influenced by this setting. The default value is 2, at which the compiler inlines functions in the base packages (including those that are syntactically special or considered core language functions) that are not shadowed at compile time (by function arguments and local bindings). Some of these are listed in table \ref{tab:inlined}.
 
-% and looking at the source code;-D
-
-The GNU R compiler has four different levels of the \emph{optimize} option (from zero to three) and the amount of inlining performed is directly influenced by this setting. The default value is two, at which the compiler inlines functions in the base packages (including those that are syntactically special or considered core language functions EXAMPLES) that are not shadowed at compile time (by function arguments and local bindings).
+\begin{longtable}[c]{@{}ll@{}}
+\caption{Examples of inlined functions\label{tab:inlined}} \tabularnewline
+\toprule
+Function & Note \tabularnewline
+\midrule
+\endfirsthead
+\toprule
+Function & Note \tabularnewline
+\midrule
+\endhead
+\rinline/`+`/, \rinline/`-`/, \rinline/`*`/, \rinline/`<`/, \rinline/`==`/ etc. & Operators \tabularnewline
+\rinline/`(`/ & Expression grouping \tabularnewline
+\rinline/`{`/ & Block \tabularnewline
+\rinline/`if`/ & \tabularnewline
+\rinline/`repeat`/, \rinline/`while`/, \rinline/`for`/ & \tabularnewline
+\rinline/`break`/, \rinline/`next`/ & \tabularnewline
+\rinline/return/ & \tabularnewline
+\bottomrule
+\end{longtable}
 
 % example of code
 
-The inlining happens in both GUN R and RIR when the compiler sees a function call. Both first try to inline calls to special and builtin functions. If the inlining fails, the compilers fall back to the standard call mechanism. Thus the way to speed things up is to add more special cases that handle code that originally went to the default call.
+The inlining happens in both GNU R and RIR when the compiler sees a function call. Both first try to inline calls to special and builtin functions. If the inlining fails, the compilers fall back to the standard call mechanism, and that means calling the same C routines that the AST interpreter uses, effectively running interpreted code.
 
-% tady se asi hodi mluvit o tom ze ten default call je vlastne interpreter
+Thus the way to speed things up is to add more special cases that handle code that originally went to the default call.
 
-When adding a new bytecode instruction, several steps have to be performed. First, the instruction has to be added to the instruction list in the \emph{insns.h} header file. The new instruction needs to have a name and also have some properties specified. These are \emph{imm} (the number of immediate arguments that the instruction expects -- immediates are inserted directly into the code stream), \emph{pop} and \emph{push} (the number of elements that the instruction removes from and adds to the stack, respectively) and \emph{pure} (a flag that says if the instruction has side-effects, e.g., it can force a promise).
+When adding a new bytecode instruction, several steps have to be performed. First, the instruction has to be added to the instruction list in the \emph{insns.h} header file. The new instruction needs to have a name and also have some properties specified.
 
-% side-effecty jsou for optimization purposes
-
-The file with the instructions is intended to be included everywhere that a static list of all instructions (or their properties) is needed. For this reason, all instructions are wrapped in a C preprocessor macro \verb/DEF_INSTR/ and this macro has to be defined before including the file. Using this mechanism, one can for instance get an enumeration of all opcodes by defining it to just take the name of the instructions followed by a comma, or a switch over all instructions by putting the names in switch cases.
-
-% si nejsem uplne jistej jestli bych to takhle rozebiral, a pokud jo, tak bych dal malou ukazku kodu
+These are \emph{imm} (the number of immediate arguments that the instruction expects -- immediates are inserted directly into the code stream), \emph{pop} and \emph{push} (the number of elements that the instruction removes from and adds to the stack, respectively) and \emph{pure} (a flag that says if the instruction has side-effects, e.g., it can force a promise -- purity is good to know for optimization purposes).
 
 Second, the instruction has to be manually added at some places in the class that implements the bytecode instruction type and is used throughout the compiler and the analysis framework. This step is mostly mechanical.
 
-After that, the compiler must be taught to use the instruction. This is done during the inlining step. A~special case for the function call that the instruction implements has to be added. In this special case, the instruction opcode, together with any other instructions needed (such as the guard instructions explained in chapter \ref{rir}) are inserted into a code stream. It is also here while the instructions are being added into the stream that constant pool is filled (since the indices of constant pool objects are needed as immediates).
+After that, the compiler must be taught to use the instruction. This is done during the inlining step. A~special case for the function call that the instruction implements has to be added. In this special case, the instruction opcode, together with any other instructions needed (such as the guard instructions explained in chapter \ref{rir}) are inserted into a code stream.
+
+It is also here while the instructions are being added into the stream that constant pool is filled (since the indices of constant pool objects are needed as immediates).
 
 Finally, the instruction itself has to be implemented and added to the dispatching mechanism in the interpreter. This is where the code that executes the instruction is located.
 
-In the following sections, various kinds of added instructions are described.
+In the following sections, various kinds of added instructions are described. The summary is in table \ref{tab:new-instr}.
+
+\begin{longtable}[c]{@{}lccccl@{}}
+\caption{Newly added BC instructions\label{tab:new-instr}} \tabularnewline
+\toprule
+Name & \emph{imm} & \emph{pop} & \emph{push} & \emph{pure} \tabularnewline
+\midrule
+\endfirsthead
+\toprule
+Name & \emph{imm} & \emph{pop} & \emph{push} & \emph{pure} \tabularnewline
+\midrule
+\endhead
+\cinline/gt_/ & 0 & 2 & 1 & no \tabularnewline
+\cinline/le_/ & 0 & 2 & 1 & no \tabularnewline
+\cinline/ge_/ & 0 & 2 & 1 & no \tabularnewline
+\cinline/eq_/ & 0 & 2 & 1 & no \tabularnewline
+\cinline/ne_/ & 0 & 2 & 1 & no \tabularnewline
+\cinline/uplus_/ & 0 & 1 & 1 & no \tabularnewline
+\cinline/uminus_/ & 0 & 1 & 1 & no \tabularnewline
+\cinline/not_/ & 0 & 1 & 1 & no \tabularnewline
+\cinline/colon_/ & 0 & 2 & 1 & no \tabularnewline
+\cinline/ldvar2_/ & 1 & 0 & 1 & no \tabularnewline
+\cinline/stvar2_/ & 1 & 1 & 0 & yes\todo[should be no?] \tabularnewline
+\bottomrule
+\end{longtable}
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
@@ -50,21 +88,83 @@ In the following sections, various kinds of added instructions are described.
 
 Originally, RIR only had \rinline/`<`/ out of the six usual relational operators. The rest, \rinline/`>`/, \rinline/`<=`/, \rinline/`>=`/, \rinline/`==`/ and \rinline/`!=`/ were being compiled as calls to the builtin C routines, but were added.
 
-All these instructions behave in the same way as arithmetic binary operators do. They take no immediate arguments, and instead expect their operands to be left for them at the top of the stack. They pop two values off the stack, compute the respective operation, and push one result back. They are not pure.
+All these instructions behave in the same way as arithmetic binary operators do. They take no immediate arguments, and instead expect their operands to be left for them at the top of the stack. They pop two values off the stack, compute the respective operation, and push one result back. They are impure, since their arguments may be promises in which case they would have to force them.\footnote{Because R has \rinline/eval/, any arbitrary code may be run when forcing a promise!}
 
-% mozna bych ozivil tabulkou, instrukce, pop count, push count, immediate
+The speedup of adding these operations as standalone instructions lies in the fact that they are quite often called with ``scalar'' arguments, and as was mentioned before, R does not have any scalar values, since they are simply boxed in vectors of length one. If the operands are of a suitable type, and both have a single element, then a fast path can be taken and a call to the standard C builtin avoided.
 
-The speedup of adding these operations as standalone instructions lies in the fact that they are quite often called with ``scalar'' arguments, and as was mentioned before, R does not have any scalar values, since they are simply boxed in vectors of length one.
+Listing \ref{lst:eq1} shows the body of the \cinline/eq_/ instruction.\footnote{\cinline/INSTRUCTION/, \cinline/DO_RELOP/ and \cinline/NEXT/ are C preprocessor macros.} The code first gets the two operands from the stack, then it performs the operation, puts the result back on the stack, and after that moves the control to the next instruction.
 
-If the operands are of a suitable type, and both have a single element, then a fast path can be taken and a call to the standard C builtin avoided. This is possible because internally R uses the C types \cinline/int/ and \cinline/double/, so the actual comparison can be done in plain C.
+\begin{listing}[htbp]
+  \caption{\label{lst:eq1}The \cinline/eq_/ instruction}
+  \begin{ccode}
+INSTRUCTION(eq_) {
+    SEXP lhs = ostack_at(ctx, 1);
+    SEXP rhs = ostack_at(ctx, 0);
+    DO_RELOP(==);
+    ostack_popn(ctx, 2);
+    ostack_push(ctx, res);
+    NEXT();
+}
+  \end{ccode}
+\end{listing}
 
-If not, the instruction falls back to the standard routine that handles vectorized operations, vector recycling, type promotion and also any possible problems (e.g., concerning incompatible operand types). For every instruction, a static variable is also used in this case to cache the builtin function (or rather a pointer to it), so that the lookup (which is an expensive operation) is only performed once.
+In listing \ref{lst:eq2} the fast paths are shown. After checking the types and lengths of the two operands, either a \rinline/NA/ value is assigned to the result, or the particular operation is performed. This is possible because internally R uses the C types \cinline/int/ and \cinline/double/, so the actual comparison can be done in plain C.
 
-For the \rinline/`<`/ operator, combinations of integer and double scalars had fast paths implemented. This was amended and for all relational operators there is now also a fast path for comparing two logical values.
+For the \rinline/`<`/ operator, only combinations of integer and double scalars had fast paths implemented. This was amended and for all relational operators there is now also a fast path for comparing two logical values. Furthermore, the relational operators do not need to allocate a new vector for their result, since the R logical objects are singletons and they are simply assigned to the result.
 
-Furthermore, the relational operators do not need to allocate a new vector for their result, since the R logical objects are singletons.
+\begin{listing}[htbp]
+  \caption{\label{lst:eq2}The \cinline/DO_RELOP/ macro}
+  \begin{ccode}
+#define DO_RELOP(op)                                                  \
+do {                                                                  \
+  if (IS_SIMPLE_SCALAR(lhs, LGLSXP)) {                                \
+    if (IS_SIMPLE_SCALAR(rhs, LGLSXP)) {                              \
+      if (*LOGICAL(lhs) == NA_LOGICAL ||                              \
+          *LOGICAL(rhs) == NA_LOGICAL) {                              \
+        res = R_LogicalNAValue;                                       \
+      } else {                                                        \
+        res = *LOGICAL(lhs) op *LOGICAL(rhs) ? R_TrueValue            \
+                                             : R_FalseValue;          \
+      }                                                               \
+      break;                                                          \
+    }                                                                 \
+  } else if (IS_SIMPLE_SCALAR(lhs, REALSXP)) {                        \
+    if (IS_SIMPLE_SCALAR(rhs, REALSXP)) {                             \
+      /* ... */                                                       \
+      break;                                                          \
+    } else if (IS_SIMPLE_SCALAR(rhs, INTSXP)) {                       \
+      /* ... */                                                       \
+      break;                                                          \
+    }                                                                 \
+  } else if (IS_SIMPLE_SCALAR(lhs, INTSXP)) {                         \
+    /* ... */                                                         \
+  }                                                                   \
+  BINOP_FALLBACK(#op);                                                \
+} while (false)
+  \end{ccode}
+\end{listing}
 
-% mozna zase ukazka kodu, ze fakt nealokujou... 
+If the fast paths fail, the instruction falls back to the standard routine that handles vectorized operations, vector recycling, type promotion and also any possible problems (e.g., concerning incompatible operand types). This is shown in listing \ref{lst:eq3}. For every instruction, a static variable is used in this case to cache the builtin function (or rather a pointer to it), so that the lookup (which is an expensive operation) is only performed once. Here, the operands are added to a linked list (that the builtin C routine expects), and the builtin is called.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:eq3}The \cinline/BINOP_FALLBACK/ macro}
+  \begin{ccode}
+#define BINOP_FALLBACK(op)                                            \
+do {                                                                  \
+  static SEXP prim = NULL;                                            \
+  static CCODE blt;                                                   \
+  if (!prim) {                                                        \
+    prim = findFun(Rf_install(op), R_GlobalEnv);                      \
+    blt = getBuiltin(prim);                                           \
+  }                                                                   \
+  SEXP call = getSrcForCall(c, pc - 1, ctx);                          \
+  SEXP argslist = CONS_NR(lhs, CONS_NR(rhs, R_NilValue));             \
+  ostack_push(ctx, argslist);                                         \
+  res = blt(call, prim, argslist, env);                               \
+  ostack_pop(ctx);                                                    \
+} while (false)
+  \end{ccode}
+\end{listing}
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
