@@ -2,29 +2,46 @@
 
 In this chapter I~will discuss in detail the changes made to RIR in an attempt to bring it up to speed with GNU R byte-compiled code.
 
+% sem bych dal kratkej uvod ve smyslu: hlavni zmeny e dali rozdelit do x kategorii:
+% Instruction set extensions and More Specializations
+% Interpreter Refactoring
+% ...
+
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \section{Instruction set extensions}
 
 The GNU R bytecode compiler assumes certain invariants about the code at compile time, as was described in section \ref{assumptions}. Of course, the instruction set of the default compiler reflects this. In fact, having specialized bytecode instructions for specific tasks is where the compiler gets most of its speedups. Specifically, not inlining the primitive R functions of type \todo[verb]special causes the call mechanism to fall back to the same C routines that the AST interpreter uses, where the expression tree is examined and parts of it are evaluated as needed.
 
+% nechapu tu navaznost, jakoze: GNUR assumes invariants -> this is reflected in BC design (ok) -> specialized bytecodes give it most speedup (ok) -> not inlining specials calls the same stuff as AST (tady nechapu tu specifically navaznost... 
+
 The first step was to work through the document \autocite{compiler} by the author of the GNU R compiler. Here, all the inlining done by the compiler by default was determined and experiments were carried out to compare the list to RIR, usually by using the disassemblers of both GNU R and RIR and examining the results of compilation of different calls.
 
-The GNU R compiler has four different levels of the \todo[verb]optimize option (from zero to three) and the inlining performed is directly influenced by this setting. The default value is two, and at this level the compiler inlines functions in the base packages (including those that are syntactically special or considered core language functions) that are not shadowed at compile time (by function arguments and local bindings).
+% and looking at the source code;-D
+
+The GNU R compiler has four different levels of the \todo[verb]optimize option (from zero to three) and the amount of inlining performed is directly influenced by this setting. The default value is two, at which the compiler inlines functions in the base packages (including those that are syntactically special or considered core language functions EXAMPLES) that are not shadowed at compile time (by function arguments and local bindings).
+
+% example of code
 
 The inlining happens in both GUN R and RIR when the compiler sees a function call. Both first try to inline calls to special and builtin functions. If the inlining fails, the compilers fall back to the standard call mechanism. Thus the way to speed things up is to add more special cases that handle code that originally went to the default call.
 
+% tady se asi hodi mluvit o tom ze ten default call je vlastne interpreter
+
 When adding a new bytecode instruction, several steps have to be performed. First, the instruction has to be added to the instruction list in the \verb/insns.h/ header file. The new instruction needs to have a name and also have some properties specified. These are \verb/imm/ (the number of immediate arguments that the instruction expects -- immediates are inserted directly into the code stream), \verb/pop/ and \verb/push/ (the number of elements that the instruction removes from and adds to the stack, respectively) and \verb/pure/ (a flag that says if the instruction has side-effects\todo[what does this mean? maybe allocation?]).
 
+% side-effecty jsou for optimization purposes
+
 The file with the instructions is intended to be included everywhere that a static list of all instructions (or their properties) is needed. For this reason, all instructions are wrapped in a C preprocessor macro \verb/DEF_INSTR/ and this macro has to be defined before including the file. Using this mechanism, one can for instance get an enumeration of all opcodes by defining it to just take the name of the instructions followed by a comma, or a switch over all instructions by putting the names in switch cases.
+
+% si nejsem uplne jistej jestli bych to takhle rozebiral, a pokud jo, tak bych dal malou ukazku kodu
 
 Second, the instruction has to be manually added at some places in the class that implements the bytecode instruction type and is used throughout the compiler and the analysis framework. This step is mostly mechanical.
 
 After that, the compiler must be taught to use the instruction. This is done during the inlining step. A~special case for the function call that the instruction implements has to be added. In this special case, the instruction opcode, together with any other instructions needed (such as the guard instructions explained in chapter \ref{rir}) are inserted into a code stream. It is also here while the instructions are being added into the stream that constant pool is filled (since the indices of constant pool objects are needed as immediates).
 
-Then, finally, the instruction itself has to be implemented and added to the dispatching mechanism in the interpreter. This is where the code that executes the instruction is located.
+Finally, the instruction itself has to be implemented and added to the dispatching mechanism in the interpreter. This is where the code that executes the instruction is located.
 
-In the following sections, the added instructions are described.
+In the following sections, various kinds of added instructions are described.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
@@ -34,6 +51,8 @@ Originally, RIR only had \rinline/`<`/ out of the six usual relational operators
 
 All these instructions behave in the same way as arithmetic binary operators do. They take no immediate arguments, and instead expect their operands to be left for them at the top of the stack. They pop two values off the stack, compute the respective operation, and push one result back. They are not pure\todo[why].
 
+% mozna bych ozivil tabulkou, instrukce, pop count, push count, immediate
+
 The speedup of adding these operations as standalone instructions lies in the fact that they are quite often called with ``scalar'' arguments, and as was mentioned before, R does not have any scalar values, since they are simply boxed in vectors of length one.
 
 If the operands are of a suitable type, and both have a single element, then a fast path can be taken and a call to the standard C builtin avoided. This is possible because internally R uses the C types \cinline/int/ and \cinline/double/, so the actual comparison can be done in plain C.
@@ -42,7 +61,9 @@ If not, the instruction falls back to the standard routine that handles vectoriz
 
 For the \rinline/`<`/ operator, combinations of integer and double scalars had fast paths implemented. This was amended and for all relational operators there is now also a fast path for comparing two logical values.
 
-Also, the relational operators do not need to allocate a new vector for their result, since the R logical objects are singletons.
+Furthermore, the relational operators do not need to allocate a new vector for their result, since the R logical objects are singletons.
+
+% mozna zase ukazka kodu, ze fakt nealokujou... 
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
@@ -61,6 +82,9 @@ The logical negation has a fast path for logical scalars in addition to numeric.
 The colon operator \rinline/`:`/ in R provides a convenient way to generate sequences. It is used very often, notably in \todo[verb]for loops as an integer control sequence for the loop variable. The values it generates can be both increasing and decreasing, and they differ by one. If the starting value is an integer, then the vector is also integer.
 
 The colon instruction was added that, similarly to arithmetic operators, takes no immediates, expects two operands on the top of the stack and pushed back the resulting sequence object. It is impure. Adding it to the compiler was actually the same as adding an arithmetic binary operator. The instruction itself adds a fast path for combinations of integer and double operands (the doubles apply only if they represent an integer up to a rounding error). This fast path allocates an integer vector of appropriate length and fills it with the sequence values.
+
+% why is colon impure? -- tohle plati i pro dalsi, proc treba load dole neni pure? 
+
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
