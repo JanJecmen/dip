@@ -117,7 +117,7 @@ eval_done:
   \end{ccode}
 \end{listing}
 
-Summary of the various newly added instructions is in table \ref{tab:new-instr}. One that does not fit anywhere is \cinline/nop_/. As one would expect, it does not do anything, takes no immediates or stack arguments and is, by definition, pure. It will useful later when eliminating loop contexts. The rest are described in the following sections.
+Summary of the various newly added instructions is in table \ref{tab:new-instr}. One that does not fit anywhere is \cinline/nop_/. As one would expect, it does not do anything, takes no immediates or stack arguments and is, by definition, pure. It will be useful later when eliminating loop contexts. The rest are described in the following sections.
 
 \begin{longtable}[c]{@{}lccccl@{}}
 \caption{Newly added BC instructions\label{tab:new-instr}} \tabularnewline
@@ -335,11 +335,29 @@ INSTRUCTION(stvar2_) {
 
 \section{Compiler modifications}
 
-In this section, some changes that were made directly to the compiler are discussed. Included at the end is also a section about loop refactoring that was not used in the end.
+In this section, some changes that were made directly to the compiler are discussed. Included at the end is also a section about loop refactoring that was eventually not used.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \subsection{Loop context removal}
+
+One of the consequences of lazy evaluation in R is that the control flow statements \rinline/break/ and \rinline/next/ can in fact be non-local jumps (i.e. across multiple stack frames).\footnote{This is true for \rinline/return/ as well, however non-local returns are not handled by loop contexts.} Listing \ref{lst:non-local-break} presents a possible way of producing non-local \rinline/break/. The arguments to the \rinline/foo/ function are wrapped in promises, and may or may not be evaluated. However, if the second argument ever gets evaluated, it has to break out of the \rinline/repeat/ loop that called \rinline/foo/.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:non-local-break}Context for \rinline/break/ required}
+  \begin{rcode}
+function(n) {
+    repeat {
+        foo(n, break)
+        n <- n - 1
+    }
+}
+  \end{rcode}
+\end{listing}
+
+To implement this behavior, C long jumps have to be used. Thus, both GNU R and RIR have a bytecode instruction that sets up the long jump, and another that cleans up after the loop finishes.
+
+Quite often the runtime loop context is not needed, as is shown in listing \ref{lst:local-break}. In such cases only local jump suffices because the \rinline/break/ can only ever be evaluated in the same stack frame.
 
 \begin{listing}[htbp]
   \caption{\label{lst:local-break}Safe \rinline/break/}
@@ -353,16 +371,139 @@ function(n) {
   \end{rcode}
 \end{listing}
 
+The rule for when the runtime context is needed and when not is as follows. If a loop contains any \rinline/break/ or \rinline/next/ statements that are wrapped in a promise, the loop context is needed. However, if all such statements are wrapped inside their promises in another loop (or the closure constructor \rinline/function/), the context can still be left out.
+
+RIR used to create the runtime loop contexts for all loops, so a mechanism was added to enable skipping them in the safe cases. The compiler uses a \cppinline/Context/ object that holds a stack of \cppinline/CodeContext/ objects. Each code context in turn contains a code stream for the generated code and its own stack of \cppinline/LoopContext/ objects. The original structure can be seen in listing \ref{lst:context}.
+
 \begin{listing}[htbp]
-  \caption{\label{lst:non-local-break}Context for \rinline/break/ required}
-  \begin{rcode}
-function(n) {
-    repeat {
-        foo(if (n <= 0) break else 3)
-        n <- n - 1
+  \caption{\label{lst:context}RIR compiler context}
+  \begin{cppcode}
+class Context {
+  public:
+    class LoopContext { /* ... */ };
+    class CodeContext {
+      public:
+        CodeStream cs;
+        std::stack<LoopContext> loops;
+        // ...
+    };
+    std::stack<CodeContext> code;
+    // ...
+};
+  \end{cppcode}
+\end{listing}
+
+A~new \cppinline/CodeContext/ was pushed when the compiler entry point was invoked, and then each time a promise was compiled. The system of mutually recursive compiler functions then worked in the code context that was on the top of the stack. When a loop was encountered, a new \cppinline/LoopContext/ was pushed to the stack of the top code context.
+
+The loop context objects contain the target labels for the local control flow. A~new flag was added that signals whether a runtime loop context is needed for the given loop. The class is shown in listing \ref{lst:loop-context}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:loop-context}Loop context class}
+  \begin{cppcode}
+class LoopContext {
+  public:
+    LabelT next_;
+    LabelT break_;
+    bool context_needed_ = false;
+    LoopContext(LabelT next_, LabelT break_)
+        : next_(next_), break_(break_) {}
+};
+  \end{cppcode}
+\end{listing}
+
+To implement the rules for skipping runtime loop contexts, a \cppinline/PromiseContext/ class was added that is used when the compiler compiles a promise. This is shown in listing \ref{lst:prom-cmp}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:prom-cmp}Compiling a promise}
+  \begin{cppcode}
+FunIdxT compilePromise(Context& ctx, SEXP exp) {
+    ctx.pushPromiseContext(exp);  // instead of CodeContext
+    compileExpr(ctx, exp);
+    ctx.cs() << BC::ret();
+    return ctx.pop();
+}
+  \end{cppcode}
+\end{listing}
+
+The \cppinline/CodeContext/ was changed to store a pointer to its parent (a context below it on the stack). This change allows for finding out transitively if the compiler is in any loop, not just one from the current context, and also to set the \cppinline/LoopContext/ flag in the first enclosing loop. The new functionality is presented in listing \ref{lst:code-context-parent}
+
+\begin{listing}[htbp]
+  \caption{\label{lst:code-context-parent}Hierarchy of \cppinline/CodeContext/ objects}
+  \begin{cppcode}
+class CodeContext {
+  public:
+    // ...
+    CodeContext* parent;
+    bool inLoop() {
+        return !loops.empty() || (parent && parent->inLoop());
+    }
+    void setContextNeeded() {
+        if (loops.empty() && parent)
+            parent->setContextNeeded();
+        else
+            loops.top().context_needed_ = true;
+    }
+};
+  \end{cppcode}
+\end{listing}
+
+The \cppinline/PromiseContext/ class inherits from \cppinline/CodeContext/. When compiling \rinline/break/ or \rinline/next/ in a promise, the parent context (i.e. where the promise was created) is notified to set the loop context flag. This is shown in listing \ref{lst:prom-context}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:prom-context}Promise context class}
+  \begin{cppcode}
+bool loopIsLocal() override {
+    if (loops.empty()) {
+        parent->setContextNeeded();  // set flag in parent
+        return false;  // and do not inline
+    }
+    return true;
+}
+  \end{cppcode}
+\end{listing}
+
+One last missing piece is being able to remove an instruction from a code stream. The stream originally did not have this functionality, but it was added to allow removing unnecessary loop context instructions. The trick used is to replace the instruction opcode together with its immediates by \cinline/nop_/ instructions (which get removed later during BC cleanup).
+
+Finally, when compiling the loops, the instruction \cinline/beginloop_/ is emitted just as before. However, after the loop is compiled, it is removed from the stream if the context is not needed. The code for the \rinline/repeat/ loop is shown in listing \ref{lst:repeat}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:repeat}\rinline/repeat/ loop inlining}
+  \begin{cppcode}
+if (fun == symbol::Repeat) {
+    // ...
+    ctx.pushLoop(loopBranch, nextBranch);
+    unsigned beginLoopPos = cs.currentPos();
+    cs << BC::beginloop(nextBranch)
+       << loopBranch;
+    compileExpr(ctx, body);
+    cs << BC::pop() << BC::br(loopBranch)
+       << nextBranch;
+    if (ctx.loopNeedsContext())
+        cs << BC::endcontext();
+    else
+        cs.remove(beginLoopPos);
+    cs << BC::push(R_NilValue) << BC::invisible();
+    ctx.popLoop();
+    return true;
+}
+  \end{cppcode}
+\end{listing}
+
+Compiling \rinline/next/ and \rinline/break/ then involves checking with the context if inlining is ok (i.e. the statement is not in a promise or it is in a loop in a promise). The code for inlining \rinline/break/ is in listing \ref{lst:break}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:break}\rinline/break/ inlining}
+  \begin{cppcode}
+if (fun == symbol::Break) {
+    if (!ctx.inLoop()) return false;
+    if (ctx.loopIsLocal()) {
+        cs << BC::guardNamePrimitive(fun)
+           << BC::br(ctx.loopBreak())
+           << BC::push(R_NilValue);
+        return true;
     }
 }
-  \end{rcode}
+  \end{cppcode}
 \end{listing}
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
@@ -446,36 +587,15 @@ As it turned out, the biggest speedup was gained by refactoring the RIR bytecode
 
 In the cases there was a call to a function that implemented the instruction. These function were defined with the C \cinline/inline/ and \cinline/static/ modifiers, and to make sure the compiler really inlined them, the GNU extension attribute \cinline/__attribute__((always_inline))/ was also specified.
 
-However, something 
-
-\begin{listing}[htbp]
-  \caption{\label{lst:}}
-  \begin{rcode}
-
-  \end{rcode}
-\end{listing}
-
-\todo[register]
-
-% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
-
-%\todo[to compiler, to ir, to interpreter, use code snippets, describe microbenchmarks, theory (threaded code...)]
-
-%\todo[everywhere: motivation - how it helped in microbenchmarks, then how in real]
-
-%\todo[relational operators, fast paths for logical args, unary plus minus not, loop contexts, bc cleanup, colon, superassing, inlining of instructions in main loop, threaded code, inline stack funcs, loops refactor, disable guardfuns]
+% However, something 
 
 % \begin{listing}[htbp]
+%   \caption{\label{lst:}}
 %   \begin{rcode}
-% f <- function() {
-%     i <- 10000000L
-%     while (i > 0) {
-%         i <- i - 1
-%     }
-% }
-% system.time(f())[[3]]  # jit everything
-% t <- c()
-% for (x in 1:15) t <- c(t, system.time(f())[[3]])
-% mean(t[5:15])  # only include measurments after warmup
 %   \end{rcode}
 % \end{listing}
+
+% \todo[register]
+
+% \todo[everywhere: motivation - how it helped in microbenchmarks, then how in real]
+% \todo[inlining of instructions in main loop, threaded code, inline stack funcs]
