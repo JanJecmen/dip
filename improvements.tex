@@ -12,9 +12,7 @@ Finally, the RIR interpreter loop itself was refactored to run more efficiently,
 
 \section{Instruction set extensions}
 
-The GNU R bytecode compiler assumes certain invariants about the code at compile time, as was described in section \ref{assumptions}. Of course, the instruction set of the default compiler reflects this. In fact, having specialized bytecode instructions for specific tasks is where the compiler gets most of its speedups.
-
-%idealne to nahore odcitovat nekde, pokud neni odcitovano, tak bych to zgeneralizoval, jakoze treba to je kde VM obecne ziskavaji velke speedupy a muzes dat treba odkaz na FastR paper, coz je cely o specializacich
+The GNU R bytecode compiler assumes certain invariants about the code at compile time, as was described in section \ref{assumptions}. Of course, the instruction set of the default compiler reflects this. Having specialized bytecode instructions for specific tasks is where virtual machines generally get a lot of speedup.\todo[cite: http://janvitek.org/pubs/vee14.pdf]
 
 The first step was to work through the documentation of the GNU R bytecode compiler \autocite{compiler}. Here, all the inlining done by default by the compiler was determined and experiments were carried out to compare their list to RIR, usually by using the disassemblers of both GNU R and RIR, examining the results of compilation of different calls and studying the C source codes.
 
@@ -119,7 +117,7 @@ eval_done:
   \end{ccode}
 \end{listing}
 
-In the following sections, various kinds of newly added instructions are described. The summary is in table \ref{tab:new-instr}.
+Summary of the various newly added instructions is in table \ref{tab:new-instr}. One that does not fit anywhere is \cinline/nop_/. As one would expect, it does not do anything, takes no immediates or stack arguments and is, by definition, pure. It will useful later when eliminating loop contexts. The rest are described in the following sections.
 
 \begin{longtable}[c]{@{}lccccl@{}}
 \caption{Newly added BC instructions\label{tab:new-instr}} \tabularnewline
@@ -131,6 +129,7 @@ Name & \emph{imm} & \emph{pop} & \emph{push} & \emph{pure} \tabularnewline
 Name & \emph{imm} & \emph{pop} & \emph{push} & \emph{pure} \tabularnewline
 \midrule
 \endhead
+\cinline/nop_/ & 0 & 0 & 0 & yes \tabularnewline
 \cinline/gt_/ & 0 & 2 & 1 & no \tabularnewline
 \cinline/le_/ & 0 & 2 & 1 & no \tabularnewline
 \cinline/ge_/ & 0 & 2 & 1 & no \tabularnewline
@@ -261,9 +260,7 @@ Adding it to the compiler was actually the same as adding an arithmetic binary o
   \caption{\label{lst:colon}The \cinline/colon_/ instruction}
   \begin{ccode}
 INSTRUCTION(colon_) {
-    SEXP lhs = ostack_at(ctx, 1);
-    SEXP rhs = ostack_at(ctx, 0);
-    res = NULL;
+    /* ... */
     if (IS_SIMPLE_SCALAR(lhs, INTSXP)) {
         int from = *INTEGER(lhs);
         if (IS_SIMPLE_SCALAR(rhs, INTSXP)) {
@@ -277,7 +274,7 @@ INSTRUCTION(colon_) {
             }
         }
     } else if (IS_SIMPLE_SCALAR(lhs, REALSXP)) {
-        /* ... */
+        /* real + int, real + real */
     }
     if (res == NULL) {
         BINOP_FALLBACK(":");
@@ -338,7 +335,11 @@ INSTRUCTION(stvar2_) {
 
 \section{Compiler modifications}
 
-\todo[loop contexts, loop refactoring, bc cleanup]
+In this section, some changes that were made directly to the compiler are discussed. Included at the end is also a section about loop refactoring that was not used in the end.
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\subsection{Loop context removal}
 
 \begin{listing}[htbp]
   \caption{\label{lst:local-break}Safe \rinline/break/}
@@ -366,6 +367,79 @@ function(n) {
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
+\subsection{BC cleanup}
+
+A~few small improvements were made to the optimization pass that RIR runs on the bytecode after it is compiled. The recursive compiler and possibly other transformations applied to the bytecode sometimes produce sequences of BC instructions where some are redundant or can be replaced. Examples of this include loading a variable twice or pushing to the stack and immediately popping.
+
+The modified compilation of loops described previously produces for one some \cinline/nop_/ instructions. Moreover, the pair of instructions \cinline/pick_ 1; pick_ 1/ occured quite often. The \cinline/pick_/ instruction removes the stack element at the index given by its immediate and puts it to the top of stack. If the code picks the element just under the top of stack twice in a row, the effect is as if nothing happened. Therefore, the code in listing \ref{lst:cleanup} was added to the BC cleanup pass to fix these.
+
+The two methods are located in an analysis class that implements the visitor pattern over instructions. Thus adding new cleanup code means simply overriding the particular bytecode instruction.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:cleanup}\cinline/nop_/ and double \cinline/pick_ 1/ elimination}
+  \begin{cppcode}
+void nop_(CodeEditor::Iterator ins) override {
+    CodeEditor::Cursor cur = ins.asCursor(code_);
+    cur.remove();
+    return;
+}
+void pick_(CodeEditor::Iterator ins) override {
+    if (ins != code_.begin() &&
+        ins.asCursor(code_).bc().immediate.i == 1) {
+        auto prev = ins - 1;
+        if ((*prev).is(Opcode::pick_) && *ins == *prev) {
+            CodeEditor::Cursor cur = prev.asCursor(code_);
+            cur.remove();
+            cur.remove();
+            return;
+        }
+    }
+}
+  \end{cppcode}
+\end{listing}
+
+Finally, the cleanup analysis is run iteratively until a constant number of runs happens or the analysis reaches a fixpoint (i.e. it does not change the code anymore), whichever comes first. The constant limiting the number of runs was previously set to 2, which often left a lot of easy cleanup unfinished. This limit was therefore increased to 10.
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\subsection{Loop refactoring}
+
+Theoretically, it is possible to optimize the code generated for \rinline/while/ loops by swapping the loop's body and its condition. The intuitive way is to compile the condition first, then insert a conditional jump to the end of the body, then compile the body and jump unconditionally to the top again. In pseudocode this is shown in listing \ref{lst:cond-body}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:cond-body}\rinline/while/ loop bytecode}
+  \begin{ccode}
+COND:
+    // code for the condition
+    brfalse_ END
+BODY:
+    // code for the body
+    br_ COND
+END:
+  \end{ccode}
+\end{listing}
+
+However, if the condition and the body are swapped, half of the jumps can be saved. The body is compiled first, then follows the condition and a conditional jump back to the body. Additionaly, a single unconditional jump is inserted before the body. Listing \ref{lst:body-cond} demonstrates this.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:body-cond}Refactored \rinline/while/ loop bytecode}
+  \begin{ccode}
+    br_ COND
+BODY:
+    // code for the body
+COND:
+    // code for the condition
+    brtrue_ BODY
+END:
+  \end{ccode}
+\end{listing}
+
+Similar change can be done to \rinline/for/ loops.
+
+Unfortunately, this proved to be a slowdown rather than a speedup. This is probably caused by changing the backward jump from unconditional to conditional. Because RIR profiles the backward jumps (they signal the presence of a loop), it seems that one forward conditional jump and one backward unconditional are cheaper than a single conditional backward jump.
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
 \section{Interpreter refactoring}
 
 As it turned out, the biggest speedup was gained by refactoring the RIR bytecode interpreter. Originally, the interpreter was quite straightforward. The main evaluator function \cinline/evalRirCode/ contained in its core an infinite loop, and in its body there was a huge switch statement with one case for each bytecode instruction.
@@ -381,7 +455,7 @@ However, something
   \end{rcode}
 \end{listing}
 
-/todo[register]
+\todo[register]
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
