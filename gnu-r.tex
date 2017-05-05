@@ -27,7 +27,7 @@ Functions are by design anonymous, i.e., they are not named when created. This i
   \end{rcode}
 \end{listing}
 
-Interestingly, everything that happens in R is in fact a function call. This goes as far as arithmetic operators being just syntactic sugar for function calls, as can be seen in listing \ref{lst:arith-plus}.\footnote{As a side note, backticks are used in R to denote symbols (i.e. names). Because some symbols have special syntactic meaning (like the \rinline/`+`/ being an infix binary operator), they can cause a syntax error if they appear unquoted in a place where the parser does not expect them.} In this spirit, even assigning into a variable, evaluating a block of code inside curly brackets or grouping expressions with parentheses translate to calling the respective functions.
+Interestingly, everything that happens in R is in fact a function call. This goes as far as arithmetic operators being just syntactic sugar for function calls, as can be seen in listing \ref{lst:arith-plus}.\footnote{As a side note, backticks are used in R to denote symbols (i.e. names). Because some symbols have special syntactic meaning (like the \rinline/`+`/ being an infix binary operator), they can cause a syntax error if they appear unquoted in a place where the parser does not expect them.} In this spirit, even assigning into a variable, evaluating a block of code inside curly brackets or grouping expressions with parentheses translate to calling the respective functions. As such, everything can be redefined, as in listing \ref{lst:paren-redef}.
 
 \begin{listing}[htbp]
   \caption{\label{lst:arith-plus}Arithmetic operators are function calls in R}
@@ -40,6 +40,17 @@ function (e1, e2)  .Primitive("+")
 [1] 3
 > 1 + 2
 [1] 3
+  \end{rcode}
+\end{listing}
+
+\begin{listing}[htbp]
+  \caption{\label{lst:paren-redef}Redefinition of parentheses grouping}
+  \begin{rcode}
+> ((0))
+[1] 0
+> `(` <- function(x) x + 1
+> ((0))
+[1] 2
   \end{rcode}
 \end{listing}
 
@@ -492,7 +503,7 @@ On top of that, R is a very dynamic language that gives a very high degree of fr
 
 Even though R did not go as far as Lisp which makes no distinctions between programs and data, it provides ways to transform code into text and the other way round (namely, the functions \rinline/parse/ and \rinline/deparse/).
 
-Non-standard evaluation and metaprogramming are possible by leveraging delayed evaluation and using funcions like \rinline/substitute/ (that returns the parse tree for an unevaluated expression and at the same time possibly modifies it), \rinline/quote/ (that simply returns its argument unevaluated) and \rinline/eval/ (that evaluates an expression in a specified environment). R also provides means for creating embedded domain specific languages (e.g., the formula specification or the ``grammar of graphics'' of ggplot2).\footnote{\todo[about ggplot2]}
+Non-standard evaluation and metaprogramming are possible by leveraging delayed evaluation and using funcions like \rinline/substitute/ (that returns the parse tree for an unevaluated expression and at the same time possibly modifies it), \rinline/quote/ (that simply returns its argument unevaluated) and \rinline/eval/ (that evaluates an expression in a specified environment). R also provides means for creating embedded domain specific languages (e.g., the formula specification or the ``grammar of graphics'' of ggplot2).\footnote{\rinline/ggplot2/ (homepage: \url{http://ggplot2.org/}) is another package by Hadley Wickham. It is widely used for data visualization.}
 
 To conlude, R being the mixture of different paradigms that it is makes it quite difficult to reason about the code and optimize it. Adding together functional style, object systems, laziness, introspection, dynamic evaluation, computation on the language itself, explicit environment manipulation and more creates a very complex result.
 
