@@ -2,7 +2,7 @@
 
 This chapter discusses how the changes implemented in chapter \ref{improvements} impact the performance of RIR.
 
-For evaluation, the Shootout benchmarks were used. \todo
+For evaluation, the Shootout benchmarks were used (see \autocite{shootout} and \autocite{fastr}). 
 
 Additionaly, for testing things quickly during development, usually a kind of microbenchmark, such as the one in listing \ref{lst:microbench}, were checked by hand in fresh sessions of GNU R (with JIT disabled and with JIT set to 2) and RIR (with JIT enabled). In the code, a function is defined and measured repeatedly. The final reported time is computed as arithmetic mean of only a tailing part of the runs. This is to ensure a proper warmup (i.e. everything is byte-compiled by the JIT and possibly the processor branch predictors warm up).
 
@@ -20,6 +20,22 @@ mean(t[5:10])
 \end{listing}
 
 The scripts used to make the measurments can be found on the enclosed CD. \todo How was it measured? violet specs (i7, 8GB RAM)?
+
+Figure \ref{fig:overall} shows the summary of speedups gained for all benchmarks, as well as an overall average speedup.
+
+\begin{figure}[htbp]
+  \caption{\label{fig:overall}Overview of the slowdown vs. GNU R}
+  \centering
+  \tmpframe{\includegraphics[width=\linewidth]{images/overall}}
+\end{figure}
+
+The lighter color refers to the state before anything was done, the darker after all the changes described in chapter \ref{improvements}.
+
+The speedups are computed relative to the running time of GNU R byte-compiled code, which was normalized to 1 (this is indicated by the solid black line).
+
+It can be clearly seen that the most speedup was gained in the naive implementations.
+
+Overall, an average slowdown of about 1.678 against GNU R was lowered to about 1.336.
 
 Figure \ref{fig:history} captures the running times of each benchmark over the course of the work described in chapter \ref{improvements}. The measurments were performed for some of the important revisions. Their list is also on the enclosed CD.
 
@@ -51,7 +67,7 @@ ff73d75 & \todo \tabularnewline
   \tmpframe{\includegraphics[width=\linewidth]{images/speedup_history}}
 \end{figure}
 
-In the figure, the light blue color represents the performance of the GNU R bytecode. As all measurments were carried out on the same version of GNU R (namely 3.3.2) the times should be constant over the history, and indeed they are.
+In the figure, the light blue color represents the performance of the GNU R bytecode. As all measurments were carried out on the same version of GNU R (namely 3.3.2) the times are identical.
 
 For three mandelbrot, pidigits and two spectralnorm benchmarks RIR was already faster.
 
@@ -70,19 +86,3 @@ The average speedup versus GNU R over the measured revisions is captured in figu
   \centering
   \tmpframe{\includegraphics[width=\linewidth]{images/avg_speedup}}
 \end{figure}
-
-Figure \ref{fig:overall} shows the summary of speedups gained for all benchmarks, as well as an overall average speedup.
-
-\begin{figure}[htbp]
-  \caption{\label{fig:overall}Overview of the slowdown vs. GNU R}
-  \centering
-  \tmpframe{\includegraphics[width=\linewidth]{images/overall}}
-\end{figure}
-
-The lighter color refers to the state before anything was done, the darker after all the changes described in chapter \ref{improvements}.
-
-The speedups are computed relative to the running time of GNU R byte-compiled code, which was normalized to 1 (this is indicated by the solid black line).
-
-It can be clearly seen that the most speedup was gained in the naive implementations.
-
-Overall, an average slowdown of about 1.678 against GNU R was lowered to about 1.336.

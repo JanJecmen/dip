@@ -12,7 +12,7 @@ Finally, the RIR interpreter loop itself was refactored to run more efficiently,
 
 \section{Instruction set extensions}
 
-The GNU R bytecode compiler assumes certain invariants about the code at compile time, as was described in section \ref{assumptions}. Of course, the instruction set of the default compiler reflects this. Having specialized bytecode instructions for specific tasks is where virtual machines generally get a lot of speedup.\todo[cite: http://janvitek.org/pubs/vee14.pdf]
+The GNU R bytecode compiler assumes certain invariants about the code at compile time, as was described in section \ref{assumptions}. Of course, the instruction set of the default compiler reflects this. Having specialized bytecode instructions for specific tasks is where virtual machines generally get a lot of speedup \autocite{fastr}.
 
 The first step was to work through the documentation of the GNU R bytecode compiler \autocite{compiler}. Here, all the inlining done by default by the compiler was determined and experiments were carried out to compare their list to RIR, usually by using the disassemblers of both GNU R and RIR, examining the results of compilation of different calls and studying the C source codes.
 
@@ -335,7 +335,7 @@ INSTRUCTION(stvar2_) {
 
 \section{Compiler modifications}
 
-In this section, some changes that were made directly to the compiler are discussed. Included at the end is also a section about loop refactoring that was eventually not used.
+In this section, some changes that were made directly to the compiler are discussed. Included at the end is a section about refactoring loops compilation in a way that saves some jumps. Ultimately, this was not used because it turned out that it had a negative impact on performance.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
@@ -575,28 +575,78 @@ END:
   \end{ccode}
 \end{listing}
 
-Similar change can be done to \rinline/for/ loops.
+Similar change can be done to \rinline/for/ loops. The \rinline/repeat/ loops are infinite by design and do not have a condition, so nothing can be done there.
 
-Unfortunately, this proved to be a slowdown rather than a speedup. This is probably caused by changing the backward jump from unconditional to conditional. Because RIR profiles the backward jumps (they signal the presence of a loop), it seems that one forward conditional jump and one backward unconditional are cheaper than a single conditional backward jump.
+Unfortunately, this change proved to be a slowdown rather than a speedup in anything more complicated than a loop with an empty body, and even there the gains were quite small.
+
+This is probably caused by changing the backward jump from unconditional to conditional. Because RIR profiles the backward jumps (they signal the presence of a loop), it seems that one forward conditional jump combined with one backward unconditional are cheaper than a single conditional backward jump.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \section{Interpreter refactoring}
 
-As it turned out, the biggest speedup was gained by refactoring the RIR bytecode interpreter. Originally, the interpreter was quite straightforward. The main evaluator function \cinline/evalRirCode/ contained in its core an infinite loop, and in its body there was a huge switch statement with one case for each bytecode instruction.
+As it turned out, the biggest speedup was gained by refactoring the RIR bytecode interpreter. Originally, the interpreter was quite straightforward. The main evaluator function \cinline/evalRirCode/ contained in its core an infinite loop, and in its body there was a large switch statement with one case for each bytecode instruction.
 
-In the cases there was a call to a function that implemented the instruction. These function were defined with the C \cinline/inline/ and \cinline/static/ modifiers, and to make sure the compiler really inlined them, the GNU extension attribute \cinline/__attribute__((always_inline))/ was also specified.
+In the switch cases there was a call to a function that implemented the instruction. These functions were defined with the C \cinline/inline/ and \cinline/static/ modifiers, and to make sure the compiler really inlined them, the GCC specific attribute \cinline/__attribute__((always_inline))/ was also used.
 
-something failed, because moving the instructions into the loop by hand gave huge speedups
+However, the compiler clearly had trouble with optimizing this version, possibly due to alias analysis being degraded (e.g., the interpreter passed the PC around as a pointer to a pointer, which means double indirection).\footnote{The inlining itself was actually happening, because the compiler would otherwise complain \autocite{gcc-inline}.}
 
-changed the instructions from function calls to c macros
+In the first step, all the instructions were inlined by hand into the interpreter loop. The infinite loop was replaced by a label and a \cinline/goto/. The dispatching was left to the \cinline/switch/ statement as before. One level of indirection was removed from the PC handling and the bytecode access functions that use the PC were also turned into macros. \todo[Oli did this...]
 
-inlined them by hand into the loop
+To demonstrate the difference, a microbenchmark and its results are presented in listings \ref{lst:before-inline} and \ref{lst:after-inline}.
 
-changed to threaded code
+\begin{listing}[htbp]
+  \caption{\label{lst:before-inline}Effects of inlining instructions by hand -- before}
+  \begin{rcode}
+> f <- function() {
++     i <- 10000000L
++     while (i > 0) i <- i - 1
++ }
+> t <- c()
+> for (x in 1:10) t <- c(t, system.time(f())[[3]])
+> mean(t[5:10])
+[1] 1.141833
+  \end{rcode}
+\end{listing}
 
-about threaded
+\begin{listing}[htbp]
+  \caption{\label{lst:after-inline}Effects of inlining instructions by hand -- after}
+  \begin{rcode}
+> # same code as before...
+> mean(t[5:10])
+[1] 0.6458333
+  \end{rcode}
+\end{listing}
 
-specifying registers not any good
+Following the example of GNU R, where the interpreter almost never calls any functions and instead inlines the code via C preprocessor macros, some functions that manipulated the bytecode stack or retrieved the constant and source pool objects were converted into macros.
 
-changed stack functions to macros too
+To further improve the interpreter, a switch based dispatch technique was replaced with threaded code dispatching. The technique is popular in languages such as Forth, and is described in, e.g., \autocite{threading}.
+
+Dispatching is the mechanism that transfers control in a virtual machine interpreter between individual bytecode instructions. When a \cinline/switch/ statement is used, the dispatching takes place at one location (the switch header), where the address to jump to for a given instruction is determined (by looking into a jump table). After the instruction finishes, another jump is needed to transfer the control back to the switch.
+
+This can be made more efficient by eliminating this last jump. Since the code that does the dispatching is typically very short, it can be replicated at the end of every instruction. If a jump table can be created with the addresses of all instructions, then the \cinline/switch/ can be removed, and completely replaced by looking into the jump table (which is indexed by the instruction opcodes) and jumping to the next instruction. This is called indirect threading because of the need to look for the addresses in the jump table.
+
+There is no way to implement threading in standard C. Fortunately, GCC supports an extension called computed goto \autocite{gcc-computed-goto}, that allows for taking the address of a label. Using this, it is easy to create the jump table. This is shown in listing \ref{lst:threaded}. The \cinline/INSTRUCTION/ macro becomes simply a label, the \cinline/NEXT/ macro uses the jump table to get the address of the next instruction and computed goto to jump there. The jump table is constructed statically using the list of all instructions.
+
+GNU R uses a similar technique, called direct threading. The difference is in removing even the lookup of a label address in the jump table, and instead encoding it directly into the opcodes of instructions. When finalizing the bytecode object, GNU R substitutes all the opcodes by the addresses of their code. Thus, the address to continue computation can be obtained by simply dereferencing the PC.
+
+This was not implemented in RIR, mainly for the reason that doing so causes the opcodes to become longer, changing from a single byte to the size of a pointer on a given machine (i.e. to 8 bytes on a 64-bit architecture), and the benefits of changing switch dispatching to threading seemed quite small.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:threaded}Threaded dispatching}
+  \begin{ccode}
+#define INSTRUCTION(name) op_##name:
+#define NEXT() (__extension__ ({goto *opAddr[advanceOpcode()];}))
+static void* opAddr[numInsns_] = {
+#    define DEF_INSTR(name, ...) (__extension__ && op_##name),
+#    include "ir/insns.h"
+#    undef DEF_INSTR
+};
+  \end{ccode}
+\end{listing}
+
+Lastly, some experimenting was done with forcing the C compiler to allocate certain variables in registers. Most of the local variables defined in the instructions were factored out to the beginning of the evaluator function. Then the form \cinline/register OpcodeT* pc asm ("r12");/ was used to keep some of the often used variables in specific registers.
+
+However, as described in \autocite{gcc-register}, the compiler takes this only as a hint. No consistent improvement was achieved and, on the contrary, specifying two or more variables to be in registers seemed to degrade the performance.
+
+It is probably best to allow the register allocator do its job without any influencing, as is recommended in the documentation.

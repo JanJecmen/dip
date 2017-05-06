@@ -30,7 +30,9 @@ The architecture is very similar to GNU R. The compiler generates bytecode for a
 
 \todo[how is rir bc different]
 
-As opposed to the assumptions used by the GNU R compielr (see \ref{assumptions}), RIR uses guards to check at runtime whether the assumption holds or not (i.e. whether the inlined function is still the same as it was at compile time).
+%talks about the motivation behind it, its architecture and design choices, the differences to the original and its shortcomings.
+
+As opposed to the assumptions used by the GNU R compiler (see \ref{assumptions}), RIR uses guards to check at runtime whether the assumption holds or not (i.e. whether the inlined function is still the same as it was at compile time).
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
@@ -43,5 +45,3 @@ First, RIR falls back to the AST interpreter more often than GNU R.
 Second, RIR allocates more memory than GNU R. For example, GNU R does not create promises out of constant arguments passed to a closure. RIR, on the other hand, creates promises from each argument.
 
 Moreover, the GNU R bytecode interpreter is very optimized and efficient, as opposed to RIR.
-
-% \todo[history: research project, northeastern? first appearence?]

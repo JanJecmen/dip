@@ -1,15 +1,21 @@
-\todo[write intro; cite:\newline
-https://www.tiobe.com/tiobe-index/\newline
-http://pypl.github.io/PYPL.html]
+R is a programming language that, despite being very old, seems to be steadily gaining popularity in the last years. In 2012, it was estimated \autocite{design}, that there were about 2000 package developers maintaining over 4000 packages, and over 2 million end users.
 
-This thesis is structured in the following way:
+Since then, various programming language popularity rating sites report (even though they ought to be taken with a grain of salt) that R only rises.\footnote{See, e.g., \url{https://www.tiobe.com/tiobe-index/} and \url{http://pypl.github.io/PYPL.html}}
 
-The chapter \emph{\nameref{gnur}} gives a short introduction to GNU R and discusses its features. It also goes under the hood and describes the inner workings of its interpreter and bytecode compiler.
+R is a very dynamic language that is easy to pick up quickly. Unfortunately, it can also be orders of magnitude slower than optimized C code and is notoriously memory hungry.
+
+RIR is a research project at Northeastern University supervised by prof. Jan Vitek. Its long term goals are to provide a fast implementation of R through the means of its own bytecode representation, compiler and interpreter. It is designed in a way that allows for implementing analysis and optimization passes over the RIR bytecode easily.
+
+However, at present, it is lacking the performance of the official GNU R bytecode virtual machine. To make it a viable alternative, improvements in this direction are needed.
+
+This thesis explores where the speed difference comes from and proposes changes to be made to lower it. These changes are imlemented and evaluated.
+
+The chapter \emph{\nameref{gnur}} gives an introduction to GNU R and discusses its features. It also goes under the hood and describes the inner workings of its interpreter and bytecode compiler.
 
 The chapter \emph{\nameref{rir}} introduces an alternative bytecode compiler for the R language, talks about the motivation behind it, its architecture and design choices, the differences to the original and its shortcomings.
 
-The chapter \emph{\nameref{improvements}} describes in depth the changes that were done to RIR in this thesis.\todo[?]
+The chapter \emph{\nameref{improvements}} describes in depth the changes that were made to RIR.
 
-The chapter \emph{\nameref{evaluation}} discusses how the performance of RIR changed after the changes done in this thesis. It describes how the measurements were done and how the performance compares to GNU R.\todo[?]
+The chapter \emph{\nameref{evaluation}} discusses how the performance of RIR changed after the improvements were made. It describes how the measurements were done and how the performance compares to GNU R.
 
-The results of this thesis are discussed in \emph{\nameref{conclusion}}, as well as the direction of future efforts regarding RIR.
+The results are discussed in \emph{\nameref{conclusion}}, as well as the direction of future efforts regarding RIR.

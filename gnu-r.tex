@@ -1,7 +1,6 @@
 \chapter{About GNU R\label{gnur}}
 
-\todo[cite]
-GNU~R is a programming language used mainly for statistical computations.\footnote{Homepage: \url{https://www.r-project.org/}} It is an open-source dialect of S, an older statistical language created in 1976 by John Chambers at Bell Laboratories. R~has been around from 1993 and was designed by Ross Ihaka and Robert Gentleman, both recognised statisticians. It is a part of the GNU software family and is still actively developed by the R~Core Team today. It is a popular alternative to the other major implementation of the S~language, S-PLUS, which is a commercial version shipped by TIBCO Software Inc.
+GNU~R \autocite{about} is a programming language used mainly for statistical computations.\footnote{Homepage: \url{https://www.r-project.org/}} It is an open-source dialect of S, an older statistical language created in 1976 by John Chambers at Bell Laboratories. R~has been around from 1993 and was designed by Ross Ihaka and Robert Gentleman, both recognised statisticians. It is a part of the GNU software family and is still actively developed by the R~Core Team today. It is a popular alternative to the other major implementation of the S~language, S-PLUS, which is a commercial version shipped by TIBCO Software Inc.
 
 R comes with a software environment built around it, which allows for easily manipulating data, carrying out computations and producing quality graphical outputs such as plots and figures. Although at heart R is used via a command line interface, there are also more user-friendly graphical IDEs available. One of the most widely used is RStudio that provides, for example, syntax highlighting and quick access to documentation through a web-like browser.\footnote{Homepage: \url{https://www.rstudio.com/}} This, together with R's readable syntax and a vast collection of extension packages available through The Comprehensive R~Archive Network (CRAN) makes it possible for new users to step in and start working quickly.
 
@@ -9,7 +8,8 @@ R comes with a software environment built around it, which allows for easily man
 
 \section{Language features of R}
 
-\todo[cite: http://r.cs.purdue.edu/pub/ecoop12.pdf, http://adv-r.had.co.nz/ ...]
+This section was written while consulting \autocite{hadley, design, inferno, rint, rlang}.
+
 R is, as far as programming languages go, very interesting and has some quite unusual semantic features. It is an interpreted language, and is dynamically typed and garbage collected. It supports multiple programming paradigms: users can use procedural imperative style, but at the same time R provides an object system (more than one, in fact!) for object oriented programming, and is heavily influenced by functional programming languages, notably Scheme (a~dialect of Lisp).
 
 Functions are, in accordance with functional languages, first-class values, so they can be passed around as call arguments, returned as results of function calls and created dynamically at runtime. R uses lexical scoping (which it adopted from Scheme) and R functions are closures that capture their enclosing environment at creation time. Arguments are passed by value (although a variant of reference counting is implemented, so that deep copies are only created as needed, e.g., when an object is modified).
@@ -356,11 +356,10 @@ Finally, the dispatch to the bytecode interpreter for objects compiled to byteco
 
 \section{BC interpreter and compiler}
 
-In an attempt to make R faster, a special internal representation for R code was developed, and a compiler from R to this bytecode was added in a package called \rinline/compiler/. This also required some minor changes to the original AST interpreter, namely adding a new \cinline/SEXP/ type for the compiled objects, called \cinline/BCODESXP/, and handling of bytecode objects in the evaluator. A~new evaluator was also added for interpreting the bytecode which is invoked by the AST version when it needs to evaluate a compiled object.
+In an attempt to make R faster, a special internal representation for R code was developed, and a compiler from R to this bytecode was added in a package called \rinline/compiler/ \autocite{compiler}. This also required some minor changes to the original AST interpreter, namely adding a new \cinline/SEXP/ type for the compiled objects, called \cinline/BCODESXP/, and handling of bytecode objects in the evaluator. A~new evaluator was also added for interpreting the bytecode which is invoked by the AST version when it needs to evaluate a compiled object.
 
 The compiler was written by Luke Tierney, and added as a standard package to~R in~2011 in version 2.13.0. However, it was not used by default until version 3.4.0, released in late April~2017 (\autocite{announce2011} and \autocite{announce2017}).\footnote{The default packages were compiled, but for additional packages and user code JIT was disabled and had to be explicitly enabled.}
 
-\todo[cite compiler pdf]
 The BC compiler itself is implemented in R, and walks the abstract syntax tree of an expression being compiled in a similar manner that the AST interpreter does (but, of course, it does so at the R level by using introspection). However, instead of evaluating the code as it traverses the tree, it produces a code object. The code is then later executed by the BC interpreter, a separate virtual machine runtime system from the AST version. The compiler uses just a single pass, meaning that it only looks at the compiled expression once, and while doing so, produces a stream of instruction. A~multi-pass version that would add optimization passes for the internal representation is planned to be explored in the future.
 
 The bytecode objects produced by the compiler consist of two components. The first is an integer vector that encodes the code itself in the form of instruction opcodes interleaved with the instruction operands. The second is a general list that represents a constant pool. In the constant pool, important objects are stored, such as the source for the compiled expression, small constant objects, or promises. The compiler is designed such that each bytecode object has its own constant pool.
@@ -489,9 +488,7 @@ To reduce the chance of such errors, the compiler keeps track of local and globa
 
 \section{Why is R hard to optimize}
 
-\autocite{inferno} \autocite{design} \autocite{hadley}
-\todo[cite: https://cran.r-project.org/doc/manuals/R-lang.html
-section 6 and 2, hadley]
+This section is based on  \autocite{design, hadley}.
 
 Firstly, R is not the fastest language out there. Of course, being an intepreted language, one cannot expect the performance of lagnuages like C that are compiled to native machine code. This is because during runtime, there is the inherent overhead of managing the virtual machine that executes a given program. For the AST interpreter, it entails walking the tree again with every evaluation of an expression. For the BC compiler and interpreter, there is first the compilation itself (which only happens once), but then dispatching of the instructions needs to be done in the interpreter loop.
 
