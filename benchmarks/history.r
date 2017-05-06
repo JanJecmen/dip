@@ -39,13 +39,14 @@ ggplot(combined, aes(x=reorder(version, i), y=time, color=experiment, group=inte
   ylab("Time [s]") +
   theme(text = element_text(family="DejaVu Sans"))
 
-#ggsave(file.path(args[[1]], "speedup_history.pdf"), device=cairo_pdf)
-#ggsave(file.path(args[[1]], "speedup_history.png"), scale=1.5)
+ggsave(file.path(args[[1]], "speedup_history.pdf"), device=cairo_pdf)
+ggsave(file.path(args[[1]], "speedup_history.png"), scale=1.5)
 
 
 nbody <- combined[grepl("nbody-naive.r", combined$benchmark),]
 
 ggplot(nbody, aes(x=reorder(version, i), y=time, color=experiment, group=interaction(benchmark, experiment))) +
+  facet_wrap(~benchmark) +
   stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
   scale_color_brewer(palette="Paired", name="Experiment") +
   theme(axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1)) +
@@ -60,6 +61,7 @@ ggsave(file.path(args[[1]], "nbody-naive.png"), scale=1.5)
 kn <- combined[grepl("knucleotide-brute.r", combined$benchmark),]
 
 ggplot(kn, aes(x=reorder(version, i), y=time, color=experiment, group=interaction(benchmark, experiment))) +
+  facet_wrap(~benchmark) +
   stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
   scale_color_brewer(palette="Paired", name="Experiment") +
   theme(axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1)) +
@@ -74,6 +76,7 @@ ggsave(file.path(args[[1]], "knucleotide-brute.png"), scale=1.5)
 pid <- combined[grepl("pidigits.r", combined$benchmark),]
 
 ggplot(pid, aes(x=reorder(version, i), y=time, color=experiment, group=interaction(benchmark, experiment))) +
+  facet_wrap(~benchmark) +
   stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
   scale_color_brewer(palette="Paired", name="Experiment") +
   theme(axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1)) +
@@ -88,6 +91,7 @@ ggsave(file.path(args[[1]], "pidigits.png"), scale=1.5)
 kn3 <- combined[grepl("knucleotide-brute3.r", combined$benchmark),]
 
 ggplot(kn3, aes(x=reorder(version, i), y=time, color=experiment, group=interaction(benchmark, experiment))) +
+  facet_wrap(~benchmark) +
   stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
   scale_color_brewer(palette="Paired", name="Experiment") +
   theme(axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1)) +
@@ -102,6 +106,7 @@ ggsave(file.path(args[[1]], "knucleotide-brute3.png"), scale=1.5)
 kn3 <- combined[grepl("reversecomplement.r", combined$benchmark),]
 
 ggplot(kn3, aes(x=reorder(version, i), y=time, color=experiment, group=interaction(benchmark, experiment))) +
+  facet_wrap(~benchmark) +
   stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
   scale_color_brewer(palette="Paired", name="Experiment") +
   theme(axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1)) +
@@ -111,3 +116,5 @@ ggplot(kn3, aes(x=reorder(version, i), y=time, color=experiment, group=interacti
 
 ggsave(file.path(args[[1]], "reversecomplement.pdf"), device=cairo_pdf)
 ggsave(file.path(args[[1]], "reversecomplement.png"), scale=1.5)
+
+
