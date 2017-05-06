@@ -587,15 +587,16 @@ As it turned out, the biggest speedup was gained by refactoring the RIR bytecode
 
 In the cases there was a call to a function that implemented the instruction. These function were defined with the C \cinline/inline/ and \cinline/static/ modifiers, and to make sure the compiler really inlined them, the GNU extension attribute \cinline/__attribute__((always_inline))/ was also specified.
 
-% However, something 
+something failed, because moving the instructions into the loop by hand gave huge speedups
 
-% \begin{listing}[htbp]
-%   \caption{\label{lst:}}
-%   \begin{rcode}
-%   \end{rcode}
-% \end{listing}
+changed the instructions from function calls to c macros
 
-% \todo[register]
+inlined them by hand into the loop
 
-% \todo[everywhere: motivation - how it helped in microbenchmarks, then how in real]
-% \todo[inlining of instructions in main loop, threaded code, inline stack funcs]
+changed to threaded code
+
+about threaded
+
+specifying registers not any good
+
+changed stack functions to macros too
