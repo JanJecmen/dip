@@ -38,12 +38,15 @@ for (i in seq_along(files)) {
   }
 }
 
+aspect <- 1/3
+
 ggplot(combined, aes(x=reorder(version, i), y=speedup, group = 1)) +
   stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
   xlab("Revision") +
   ylab("Speedup [-]") +
-  theme(text = element_text(family="DejaVu Sans"))
+  theme(text = element_text(family="DejaVu Sans")) +
+  theme(aspect.ratio=aspect)
 
-ggsave(file.path(args[[1]], "avg_speedup.pdf"), device=cairo_pdf)
-ggsave(file.path(args[[1]], "avg_speedup.png"), scale=1.5)
+ggsave(file.path(args[[1]], "avg_speedup.pdf"), device=cairo_pdf, width = 7, height = 7*aspect)
+ggsave(file.path(args[[1]], "avg_speedup.png"), scale=1.5, width = 7, height = 7*aspect)

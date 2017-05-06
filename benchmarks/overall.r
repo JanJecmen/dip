@@ -69,7 +69,7 @@ plot +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
   xlab("Benchmark") +
-  ylab("Speedup vs. GNU R") +
+  ylab("Slowdown vs. GNU R") +
   theme(text = element_text(family="DejaVu Sans"))
 
 ggsave(file.path(args[[1]], "overall.pdf"), device=cairo_pdf)
