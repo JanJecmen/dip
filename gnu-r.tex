@@ -1,18 +1,15 @@
 \chapter{About GNU R\label{gnur}}
 
-GNU~R\footnote{Homepage: \url{https://www.r-project.org/}} is a programming language used mainly for statistical computations. It is an open-source dialect of S, an older statistical language created in 1976 by John Chambers at Bell Laboratories. R~has been around from 1993 and was designed by Ross Ihaka and Robert Gentleman, both recognised statisticians. It is a part of the GNU software family and is still actively developed by the R~Core Team today. It is a popular alternative to the other major implementation of the S~language, S-PLUS, which is a commercial version shipped by TIBCO Software Inc.
 \todo[cite]
+GNU~R is a programming language used mainly for statistical computations.\footnote{Homepage: \url{https://www.r-project.org/}} It is an open-source dialect of S, an older statistical language created in 1976 by John Chambers at Bell Laboratories. R~has been around from 1993 and was designed by Ross Ihaka and Robert Gentleman, both recognised statisticians. It is a part of the GNU software family and is still actively developed by the R~Core Team today. It is a popular alternative to the other major implementation of the S~language, S-PLUS, which is a commercial version shipped by TIBCO Software Inc.
 
-R comes with a software environment built around it, which allows for easily manipulating data, carrying out computations and producing quality graphical outputs such as plots and figures. Although at heart R is used via a command line interface, there are also more user-friendly graphical IDEs available. One of the most widely used is RStudio\footnote{Homepage: \url{https://www.rstudio.com/}} that provides, for example, syntax highlighting and quick access to documentation through a web-like browser. This, together with R's readable syntax and a vast collection of extension packages available through The Comprehensive R~Archive Network (CRAN) makes it possible for new users to step in and start working quickly.
+R comes with a software environment built around it, which allows for easily manipulating data, carrying out computations and producing quality graphical outputs such as plots and figures. Although at heart R is used via a command line interface, there are also more user-friendly graphical IDEs available. One of the most widely used is RStudio that provides, for example, syntax highlighting and quick access to documentation through a web-like browser.\footnote{Homepage: \url{https://www.rstudio.com/}} This, together with R's readable syntax and a vast collection of extension packages available through The Comprehensive R~Archive Network (CRAN) makes it possible for new users to step in and start working quickly.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \section{Language features of R}
 
-\todo[cite: http://r.cs.purdue.edu/pub/ecoop12.pdf]
-
-\todo[cite: http://adv-r.had.co.nz/]
-
+\todo[cite: http://r.cs.purdue.edu/pub/ecoop12.pdf, http://adv-r.had.co.nz/ ...]
 R is, as far as programming languages go, very interesting and has some quite unusual semantic features. It is an interpreted language, and is dynamically typed and garbage collected. It supports multiple programming paradigms: users can use procedural imperative style, but at the same time R provides an object system (more than one, in fact!) for object oriented programming, and is heavily influenced by functional programming languages, notably Scheme (a~dialect of Lisp).
 
 Functions are, in accordance with functional languages, first-class values, so they can be passed around as call arguments, returned as results of function calls and created dynamically at runtime. R uses lexical scoping (which it adopted from Scheme) and R functions are closures that capture their enclosing environment at creation time. Arguments are passed by value (although a variant of reference counting is implemented, so that deep copies are only created as needed, e.g., when an object is modified).
@@ -30,7 +27,7 @@ Functions are by design anonymous, i.e., they are not named when created. This i
   \end{rcode}
 \end{listing}
 
-Interestingly, everything that happens in R is in fact a function call. This goes as far as arithmetic operators being just syntactic sugar for function calls, as can be seen in listing \ref{lst:arith-plus}\footnote{As a side note, backticks are used it R to denote symbols (i.e., names). Because some symbols have special syntactic meaning (like the \rinline/`+`/ being an infix binary operator), they can cause a syntax error if they appear unquoted in a place where the parser does not expect them.}. In this spirit, even assigning into a variable, evaluating a block of code inside curly brackets or grouping expressions with parentheses translate to calling the respective functions.
+Interestingly, everything that happens in R is in fact a function call. This goes as far as arithmetic operators being just syntactic sugar for function calls, as can be seen in listing \ref{lst:arith-plus}.\footnote{As a side note, backticks are used in R to denote symbols (i.e. names). Because some symbols have special syntactic meaning (like the \rinline/`+`/ being an infix binary operator), they can cause a syntax error if they appear unquoted in a place where the parser does not expect them.} In this spirit, even assigning into a variable, evaluating a block of code inside curly brackets or grouping expressions with parentheses translate to calling the respective functions. As such, everything can be redefined, as in listing \ref{lst:paren-redef}.
 
 \begin{listing}[htbp]
   \caption{\label{lst:arith-plus}Arithmetic operators are function calls in R}
@@ -46,9 +43,20 @@ function (e1, e2)  .Primitive("+")
   \end{rcode}
 \end{listing}
 
+\begin{listing}[htbp]
+  \caption{\label{lst:paren-redef}Redefinition of parentheses grouping}
+  \begin{rcode}
+> ((0))
+[1] 0
+> `(` <- function(x) x + 1
+> ((0))
+[1] 2
+  \end{rcode}
+\end{listing}
+
 All actual arguments to a function are lazy evaluated by default. When applying a closure, parameters are wrapped in promises. A~promise is simply an object that contains the unevaluated expression and an environment in which the expression should be evaluated. Promises are only evaluated when the value is actually needed (which is called forcing the promise). Also, once the promise is forced, it remembers the result, so that subsequent uses of the value do not evaluate the expression again.
 
-Delayed evaluation is demonstrated in listing \ref{lst:prom-lazy}, where the function in question only evaluates its first argument and does not touch the second. For the first call, the block of code in the curly brackets is never executed and so the side-effect of printing a greeting does not happen\footnote{\rinline/cat/ is short for \emph{Concatenate and Print}}. In the second call, the arguments are swapped, and the side-effect can be observed in the output. It is possible to pass a~block of code as a~function argument, since the \rinline/`{`/ is bound to a function that sequentially evaluates all its arguments and returns as its result the value of the last expression (or \rinline/NULL/ if no expressions are passed in).
+Delayed evaluation is demonstrated in listing \ref{lst:prom-lazy}, where the function in question only evaluates its first argument and does not touch the second. For the first call, the block of code in the curly brackets is never executed and so the side-effect of printing a greeting does not happen.\footnote{\rinline/cat/ is short for \emph{concatenate and print}.} In the second call, the arguments are swapped, and the side-effect can be observed in the output. It is possible to pass a~block of code as a~function argument, since the \rinline/`{`/ is bound to a function that sequentially evaluates all its arguments and returns as its result the value of the last expression (or \rinline/NULL/ if no expressions are passed in).
 
 \begin{listing}[htbp]
   \caption{\label{lst:prom-lazy}Promise lazy evaluation}
@@ -62,7 +70,7 @@ Hello
   \end{rcode}
 \end{listing}
 
-These features highlight the functional approach of R by minimizing side-effects. However, R supports assignment\footnote{An interesting quirk is R's left to right assignment: the code \rinline/1 -> x/ assigns 1 to x and is equivalent to \rinline/x <- 1/.} which enables programmers to change a function's local state by modifying its bindings and thus the imperative programming style. Also, the superassignment operator \rinline/`<<-`/ makes it possible to change non-local bindings (as shown in listing \ref{lst:superassign}) and thus brings the side-effects back into play.
+These features highlight the functional approach of R by minimizing side-effects. However, R supports assignment which enables programmers to change a function's local state by modifying its bindings and thus the imperative programming style.\footnote{An interesting quirk is R's left to right assignment: the code \rinline/1 -> x/ assigns to \rinline/x/ and is equivalent to \rinline/x <- 1/. It has nothing to do with C++ structure dereference, since R does not have references.} Also, the superassignment operator \rinline/`<<-`/ makes it possible to change non-local bindings (as shown in listing \ref{lst:superassign}) and thus brings the side-effects back into play.
 
 \begin{listing}[htbp]
   \caption{\label{lst:superassign}Superassignment}
@@ -82,11 +90,11 @@ These features highlight the functional approach of R by minimizing side-effects
   \end{rcode}
 \end{listing}
 
-The basic data type in R is an atomic vector. Vectors are collections of homogeneous values (i.e., a given vector can only hold objects of one particular type), that preserve the order of their elements. R also provides a list type which is heterogeneous. Higher-dimensional types such as matrices and data frames, as well as objects, are built from vectors and lists under the hood. Vectors can be created in R by calling the function \rinline/c/ (the name stands for \emph{combine}).
+The basic data type in R is an atomic vector. Vectors are collections of homogeneous values (a given vector can only hold objects of one particular type), that preserve the order of their elements. R also provides a list type which is heterogeneous. Higher-dimensional types such as matrices and data frames, as well as objects, are built from vectors and lists under the hood. Vectors can be created in R by calling the function \rinline/c/.\footnote{The name stands for \emph{combine}.}
 
 Atomic vectors can have one of these six types: logical, integer, double, character, complex and raw. Since R targets data analysis, a special ``not~available'' value \rinline/NA/ is provided for these. Because all values in a vector must be of the same type, R performs coercion when an attempt is made to combine vectors of different types. In listing \ref{lst:coercion}, combining a numeric vector with a character vector results in a character vector, and summing a logical vector coerces to integers (\rinline/TRUE/ becoming \rinline/1/ and \rinline/FALSE/ becoming \rinline/0/).
 
-In R there are no scalar types, as scalar values, such as individual numbers and strings, are considered to be vectors of length one. This holds for character vectors, too, which can cause confusion if one expects C-like behavior of strings and tries subscripting, because in R the subscript belongs to the vector that holds the string and not the string itself\footnote{In such a case, one needs to use the \rinline/substr/ function.}.
+In R there are no scalar types, as scalar values, such as individual numbers and strings, are considered to be vectors of length one. This holds for character vectors, too, which can cause confusion if one expects C-like behavior of strings and tries subscripting, because in R the subscript belongs to the vector that holds the string and not the string itself.\footnote{In such a case, one needs to use the \rinline/substr/ function.}
 
 \begin{listing}[htbp]
   \caption{\label{lst:coercion}Coercion to the most flexible type}
@@ -124,7 +132,7 @@ In numeric(10) + 1:3 :
   \end{rcode}
 \end{listing}
 
-In R, every object can have arbitrary attributes associated with its data. Attributes are basically a hidden map that assigns names to values. Some of the most important attributes are names (a character vector that assigns names to elements), dimensions (a vector specifying the dimensions and thus effectively distinguishing vectors from matrices and arrays) and class (for implementing one of R's object systems). Attributes are used a lot in R for many purposes and extensions as they provide a way of encoding arbitrary additional metadata for objects. As an example, in listing \ref{lst:attributes} a vector of 4 elements is created, then changed into a 2 by 2 matrix\footnote{Here it can be seen here that R uses comumn-major order for storing the elements.} and finally changed back to vector (that also has its elements named).
+In R, every object can have arbitrary attributes associated with its data. Attributes are basically a hidden map that assigns names to values. Some of the most important attributes are names (a character vector that assigns names to elements), dimensions (a vector specifying the dimensions and thus effectively distinguishing vectors from matrices and arrays) and class (for implementing one of R's object systems). Attributes are used a lot in R for many purposes and extensions as they provide a way of encoding arbitrary additional metadata for objects. As an example, in listing \ref{lst:attributes} a vector of 4 elements is created, then changed into a two by two matrix and finally changed back to vector (that also has its elements named).\footnote{Here it can be seen here that R uses comumn-major order for storing the elements.}
 
 \begin{listing}[htbp]
   \caption{\label{lst:attributes}Object attributes}
@@ -180,7 +188,7 @@ Error in f() : the ... list does not contain 2 elements
   \end{rcode}
 \end{listing}
 
-As was already mentioned, R has not one but three different object systems. The simplest is called \emph{S3} and it uses a class\todo[verb] attribute to implement ad hoc polymorphism (also known as function or operator overloading). It does not have formal classes, but instead uses a special function called a~\emph{generic function} that decides what to call based on the value of the class attribute. A~typical example is printing, where the \rinline/print/ function is generic, its body consists of a call to a dispatcher \rinline/UseMethod("print")/. Specialized versions for different types can be defined, such as \rinline/print.data.frame/ for data frames, or, given an object with class set to \rinline/"foo"/, \rinline/print.foo/ (as is shown in listing \ref{lst:s3}).
+As was already mentioned, R has not one but three different object systems. The simplest is called S3 and it uses a class attribute to implement ad hoc polymorphism (also known as function or operator overloading). It does not have formal classes, but instead uses a special function called a~generic function that decides what to call based on the value of the class attribute. A~typical example is printing, where the \rinline/print/ function is generic, its body consists of a call to a dispatcher \rinline/UseMethod("print")/. Specialized versions for different types can be defined, such as \rinline/print.data.frame/ for data frames, or, given an object with class set to \rinline/"foo"/, \rinline/print.foo/ (as is shown in listing \ref{lst:s3}).
 
 \begin{listing}[htbp]
   \caption{\label{lst:s3}S3 object system}
@@ -197,11 +205,11 @@ Printing foo!
   \end{rcode}
 \end{listing}
 
-\emph{S4} is a more formal system than \emph{S3}, and it allows for true class definitions, describing class representation and inheritance. It has multiple dispatch, which means that dispatchers can pick which method to call based on multiple arguments. R also has \emph{Reference classes}, that implement message passing style and their objects are modified in place (as opposed to the standard pass by value semantics).
+S4 is a more formal system than S3, and it allows for true class definitions, describing class representation and inheritance. It has multiple dispatch, which means that dispatchers can pick which method to call based on multiple arguments. R also has reference classes that implement message passing style. Their objects are modified in place (as opposed to the standard pass by value semantics).
 
-An important and powerful feature of R is its subsetting and subassignment mechanics. Parts of objects can be retrieved and even changed by the operators \rinline/`[`/, \rinline/`[[`/ and \rinline/`$`/. These behave differently for different types of objects.
+An important and powerful feature of R is its subsetting and subset assignment mechanics. Parts of objects can be retrieved and even changed by the operators \rinline/`[`/, \rinline/`[[`/ and \rinline/`$`/. These behave differently for different types of objects.
 
-The first version is a general subset function that supports all kinds of indexing\footnote{As opposed to many languages (e.g., C and Python), R starts indexing elements from 1 instead of 0.}. For example, integer vector specifies which elements to get and in what order, even allowing duplication. If negative indices are used, these elements are omitted from the result. Logical vectors can be used to select only elements at positions where \rinline/TRUE/ occurs. If the object is named, character vectors can be used to select by name. In combination with assignment (and superassignment), objects can be modified. Subsetting works also for higher-dimensional structures by simply providing indices for each dimension, separated by commas. Some examples are in listing \ref{lst:subset1}.
+The first version is a general subset function that supports all kinds of indexing.\footnote{As opposed to many languages (e.g., C and Python), R starts indexing elements from 1 instead of 0.} For example, integer vector specifies which elements to get and in what order, even allowing duplication. If negative indices are used, these elements are omitted from the result. Logical vectors can be used to select only elements at positions where \rinline/TRUE/ occurs. If the object is named, character vectors can be used to select by name. In combination with assignment (and superassignment), objects can be modified. Subsetting works also for higher-dimensional structures by simply providing indices for each dimension, separated by commas. Some examples are in listing \ref{lst:subset1}.
 
 \begin{listing}[htbp]
   \caption{\label{lst:subset1}Basic subsetting / subassignment}
@@ -233,7 +241,7 @@ The first version is a general subset function that supports all kinds of indexi
   \end{rcode}
 \end{listing}
 
-The second version, \rinline/`[[`/, returns only a single element of an object, and is used to get elements out of a list. The \rinline/`$`/ is then just a shorthand for \rinline/`[[`/ when used with character subsetting (i.e., the dollar version expects a name, and it need not be quoted). Also, the dollar operator does partial matching, similar to how function argument names are handled. These operators are demonstrated in listing \ref{lst:subset2}.
+The second version, \rinline/`[[`/, returns only a single element of an object, and is used to get elements out of a list. The \rinline/`$`/ is then just a shorthand for \rinline/`[[`/ when used with character subsetting (that is, the dollar version expects a name, and it need not be quoted). Also, the dollar operator does partial matching, similar to how function argument names are handled. These operators are demonstrated in listing \ref{lst:subset2}.
 
 \begin{listing}[htbp]
   \caption{\label{lst:subset2}Other subsetting operators}
@@ -273,9 +281,9 @@ $sq
 
 \section{AST interpreter}
 
-In its core R uses a classic architecture for an interpreted language. After initialization, the user enters R's read-eval-print loop (REPL), that lets them type in expressions and have R evaluate them. First, a reader, or parser, waits for the user input and reads it line by line. If, at the end of line, it has read a syntactically complete expression, it passes it to an evaluator (otherwise it waits for more input). After the evaluator returns the evaluated expression, a printer is invoked that displays the result (with some exceptions, such as assignment that sets its result to be invisible). Then the reader is again invoked and the process repeats.
+In its core R uses a classic architecture for an interpreted language. After initialization, the user enters R's read-eval-print loop (REPL), that lets them type in expressions and have R evaluate them. First, a reader, or parser, waits for the user input and reads it line by line. If, at the end of line, it has read a syntactically complete expression, it passes it to an evaluator (otherwise it waits for more input). After the evaluator returns the evaluated expression, a printer is invoked that displays the result (with some exceptions, such as assignment that sets its result to be invisible). Then the reader is invoked again and the process repeats.
 
-Every object in R is internally represented by a C structure called SEXPREC\footnote{The name refers to S-expressions, or symbolic expressions, as known from Lisp, although the classical linked lists built from dotted pairs are mostly used internally, and vectors are implemented as C arrays for efficiency reasons.} (actually, R passes the objects around as pointers to this structure, which are called SEXP). This structure contains a header with metadata about the object, such as its type, reference counter or infromation for garbage collector, and then a union of other structures that represent different types of R internal objects. Some of these types are listed it table \ref{tab:sexp-types}.
+Every object in R is internally represented by a C structure called \cinline/SEXPREC/ (actually, R passes the objects around as pointers to this structure, which are called \cinline/SEXP/).\footnote{The name refers to S-expressions, or symbolic expressions, as known from Lisp, although the classical linked lists built from dotted pairs are mostly used internally, and vectors are implemented as C arrays for efficiency reasons.} This structure contains a header with metadata about the object, such as its type, reference counter or infromation for garbage collector, and then a union of other structures that represent different types of R internal objects. Some of these types are listed it table \ref{tab:sexp-types}.
 
 \begin{longtable}[c]{@{}ll@{}}
 \caption{Some common types of internal R objects\label{tab:sexp-types}} \tabularnewline
@@ -287,23 +295,23 @@ Type & Usage \tabularnewline
 Type & Usage \tabularnewline
 \midrule
 \endhead
-NILSXP & the singleton NULL object \tabularnewline
-SYMSXP & symbols (or names) \tabularnewline
-LISTSXP & lists of dotted pairs \tabularnewline
-CLOSXP & closures \tabularnewline
-ENVSXP & environments \tabularnewline
-PROMSXP & promises \tabularnewline
-LANGSXP & language constructs (typically closure application) \tabularnewline
-SPECIALSXP & special forms (typically control flow)\tabularnewline
-BUILTINSXP & builtin non-special forms (e.g., arithmetic operators) \tabularnewline
-INTSXP & integer vectors \tabularnewline
-REALSXP & real vectors \tabularnewline
-STRSXP & string vectors \tabularnewline
-BCODESXP & object compiled to bytecode \tabularnewline
+\cinline/NILSXP/ & the singleton \rinline/NULL/ object \tabularnewline
+\cinline/SYMSXP/ & symbols (or names) \tabularnewline
+\cinline/LISTSXP/ & lists of dotted pairs \tabularnewline
+\cinline/CLOSXP/ & closures \tabularnewline
+\cinline/ENVSXP/ & environments \tabularnewline
+\cinline/PROMSXP/ & promises \tabularnewline
+\cinline/LANGSXP/ & language constructs (typically closure application) \tabularnewline
+\cinline/SPECIALSXP/ & special forms (typically control flow)\tabularnewline
+\cinline/BUILTINSXP/ & builtin non-special forms (e.g., arithmetic operators) \tabularnewline
+\cinline/INTSXP/ & integer vectors \tabularnewline
+\cinline/REALSXP/ & real vectors \tabularnewline
+\cinline/STRSXP/ & string vectors \tabularnewline
+\cinline/BCODESXP/ & object compiled to bytecode \tabularnewline
 \bottomrule
 \end{longtable}
 
-The parser, when it scans the stream of input characters, checks that it is syntactically correct and at the same time builds a tree structure that represents the parsed expression. This tree is called the abstract syntax tree (AST) and its nodes are all SEXPs. An example AST is shown in the listing \ref{lst:ast}\footnote{\rinline/pryr/ (homepage: \url{https://github.com/hadley/pryr}) is a package created by Hadley Wickham that allows to ``pry back the surface of R and dig into the details.''}. In the listing, parentheses denote function calls (i.e., LANGSXP node), the first child being the callee (typically a SYMSXP, i.e., a name that is bound to a function) and the rest its arguments.
+The parser, when it scans the stream of input characters, checks that it is syntactically correct and at the same time builds a tree structure that represents the parsed expression. This tree is called the abstract syntax tree (AST) and its nodes are all \cinline/SEXP/s. An example AST is shown in the listing \ref{lst:ast}.\footnote{\rinline/pryr/ (homepage: \url{https://github.com/hadley/pryr}) is a package created by Hadley Wickham that allows to ``pry back the surface of R and dig into the details.''} In the listing, parentheses denote function calls (i.e. \cinline/LANGSXP/ node), the first child being the callee (typically a \cinline/SYMSXP/, i.e., a name that is bound to a function) and the rest its arguments.
 
 \begin{listing}[htbp]
   \caption{\label{lst:ast}AST of a simple expression}
@@ -326,15 +334,15 @@ The parser, when it scans the stream of input characters, checks that it is synt
   \end{rcode}
 \end{listing}
 
-The evaluator is a recursive function that gets as its input two SEXP objects, one representing the AST of the expression that is to be evaluated, and the other the environment in which to evaluate the expression. The evaluator walks the given AST and based on the type of nodes it encounters, performs some action. The result is then returned to be processed by the caller of eval.
+The evaluator is a recursive function that gets as its input two \cinline/SEXP/ objects, one representing the AST of the expression that is to be evaluated, and the other the environment in which to evaluate the expression. The evaluator walks the given AST and based on the type of nodes it encounters, performs some action. The result is then returned to be processed by the caller of eval.
 
 Some nodes are self-evaluating, meaning that no action needs to be performed and the node itself is the result. These are for example the \rinline/NULL/ object, atomic vectors or environments.
 
 If the eval function sees a symbol node, a lookup for its binding is perfomed in the provided environment. If it is not found there, because of lexical scoping, the parent environment is searched, and so on, until either the binding is found or an empty environment is reached (the empty environment serves as a sentinel parent of all environment chains and does not have a parent itself).
 
-One other prominent type of nodes is LANGSXP. R has internally three types of functions, called special, builtin and closures (or user-defined functions). These have different behavior when they are applied, and the eval function handles that.
+One other prominent type of nodes is \cinline/LANGSXP/. R has internally three types of functions, called \emph{special}, \emph{builtin} and \emph{closures} (or user-defined functions). These have different behavior when they are applied, and the eval function handles that.
 
-Special funcions are the core language constructs, such as control flow (conditionals and loops). They take their arguments unevaluated in a list and evaluate them as needed while running. This is necessary for example for the if\todo[verb] statement, because, since R has side-effects, only one of the conditional branches must be evaluated to preserve the correct semantics.
+Special funcions are the core language constructs, such as control flow (conditionals and loops). They take their arguments unevaluated in a list and evaluate them as needed while running. This is necessary for example for the \rinline/if/ statement, because, since R has side-effects, only one of the conditional branches must be evaluated to preserve the correct semantics.
 
 Builtins, on the other hand, are known to evaluate all their arguments, so it is not necessary to create promises from their arguments. Instead, a list of evaluated arguments is created and passed to the builtin function. Examples of builtin functions are arithmetic operators or the colon operator for generating integer sequences.
 
@@ -342,15 +350,15 @@ The last group are closures. Closures are user-defined functions written in R, a
 
 As opposed to specials and builtins, which, being C routines, are called directly after preparing their arguments, closures need the interpreter to do some additional work. First, the actual unevaluated arguments have to be matched to the formal arguments of the closure. Then, a new environment has to be created and filled with the matched pairs of arguments. Only after this can the body of the closure be evaluated in the new environment. Also, a longjump target is set here to catch any explicit return calls from within the body.
 
-Finally, the dispatch to the bytecode interpreter for objects compiled to bytecode is also found in the eval function.
+Finally, the dispatch to the bytecode interpreter for objects compiled to bytecode is also found in the \cinline/eval/ function.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \section{BC interpreter and compiler}
 
-In an attempt to make R faster, a special internal representation for R code was developed, and a compiler from R to this bytecode was added in a package called \todo[verb]compiler. This also required some minor changes to the original AST interpreter, namely adding a new SEXP type for the compiled objects, called BCODESXP, and handling of bytecode objects in the evaluator. A~new evaluator was also added for interpreting the bytecode which is invoked by the AST version when it needs to evaluate a compiled object.
+In an attempt to make R faster, a special internal representation for R code was developed, and a compiler from R to this bytecode was added in a package called \rinline/compiler/. This also required some minor changes to the original AST interpreter, namely adding a new \cinline/SEXP/ type for the compiled objects, called \cinline/BCODESXP/, and handling of bytecode objects in the evaluator. A~new evaluator was also added for interpreting the bytecode which is invoked by the AST version when it needs to evaluate a compiled object.
 
-The compiler was written by Luke Tierney, and added as a standard package to~R in~2011 in version 2.13.0 \autocite{announce2011}. However, it was not used by default until version 3.4.0, released in late April~2017\footnote{The default packages were compiled, but for additional packages and user code JIT was disabled and had to be explicitly enabled.} \autocite{announce2017}.
+The compiler was written by Luke Tierney, and added as a standard package to~R in~2011 in version 2.13.0. However, it was not used by default until version 3.4.0, released in late April~2017 (\autocite{announce2011} and \autocite{announce2017}).\footnote{The default packages were compiled, but for additional packages and user code JIT was disabled and had to be explicitly enabled.}
 
 \todo[cite compiler pdf]
 The BC compiler itself is implemented in R, and walks the abstract syntax tree of an expression being compiled in a similar manner that the AST interpreter does (but, of course, it does so at the R level by using introspection). However, instead of evaluating the code as it traverses the tree, it produces a code object. The code is then later executed by the BC interpreter, a separate virtual machine runtime system from the AST version. The compiler uses just a single pass, meaning that it only looks at the compiled expression once, and while doing so, produces a stream of instruction. A~multi-pass version that would add optimization passes for the internal representation is planned to be explored in the future.
@@ -359,7 +367,9 @@ The bytecode objects produced by the compiler consist of two components. The fir
 
 The compiler can be used explicitly to compile an expression or a closure. However, a more convenient way is to enable just-in-time compilation (JIT). Doing so causes the AST interpreter to invoke the compiler automatically when calling a closure that is not yet compiled.
 
-The compiler comes with a disassembler that makes it possible to inspect the bytecode of an object, as is shown in listing \ref{lst:disasm}. The object is printed as a list that starts with the \rinline/.Code/ symbol, then follows the code vector (with the opcodes decoded), and last comes the constant pool. The integers in the code that are not instructions represent arguments to the instructions (the first element is an exception, as it encodes the version of the BC stored in the given object).
+The compiler comes with a disassembler that makes it possible to inspect the bytecode of an object, as is shown in listing \ref{lst:disasm}.\footnote{The output was reformatted for the sake of readability.} The object is printed as a list that starts with the \rinline/.Code/ symbol, then follows the code vector (with the opcodes decoded), and last comes the constant pool.
+
+The integers in the code that are not instructions represent immediate arguments to the instructions (the first element being an exception, as it encodes the version of the BC stored in the given object). In this particular instance, all immediates represent constant pool indices.
 
 \begin{listing}[htbp]
   \caption{\label{lst:disasm}Disassembling a BC object}
@@ -369,8 +379,16 @@ The compiler comes with a disassembler that makes it possible to inspect the byt
 function(n) n + 1
 <bytecode: 0x367ee40>
 > compiler::disassemble(f)
-list(.Code, list(8L, GETVAR.OP, 1L, LDCONST.OP, 2L, ADD.OP, 0L, 
-    RETURN.OP), list(n + 1, n, 1))
+list(.Code,
+     list(8L,
+          GETVAR.OP, 1L,
+          LDCONST.OP, 2L,
+          ADD.OP, 0L,
+          RETURN.OP),
+     list(n + 1,
+          n,
+          1)
+)
   \end{rcode}
 \end{listing}
 
@@ -390,54 +408,88 @@ Instruction & Description \tabularnewline
 Instruction & Description \tabularnewline
 \midrule
 \endhead
-RETURN.OP & Take the top of stack and return it as a result \tabularnewline
-GOTO.OP & Unconditionally jump to a label \tabularnewline
-BRIFNOT.OP & Conditionally jump to a label \tabularnewline
-POP.OP & Remove the top of stack value \tabularnewline
-LDCONST.OP & Push a constant from the constant pool \tabularnewline
-GETVAR.OP & Look up the symbol binding and push it \tabularnewline
-SETVAR.OP & Update the symbol binding \tabularnewline
-MAKEPROM.OP & Create promise from a call argument \tabularnewline
-CALL.OP & Do function call \tabularnewline
-CALLBUILTIN.OP & Call builtin function \tabularnewline
-CALLSPECIAL.OP & Call special function \tabularnewline
-MAKECLOSURE.OP & Create closure (with environment) \tabularnewline
-ADD.OP & Arithmetic binary plus \tabularnewline
-LT.OP & Relational less than \tabularnewline
-STARTASSIGN.OP & Prepare for subassignment \tabularnewline
-ENDASSIGN.OP & Clean up after subassignment \tabularnewline
-ISNULL.OP & Test if top of stack is \rinline/NULL/ \tabularnewline
-COLON.OP & Create integer sequence \tabularnewline
+\rinline/RETURN.OP/ & Take the top of stack and return it as a result \tabularnewline
+\rinline/GOTO.OP/ & Unconditionally jump to a label \tabularnewline
+\rinline/BRIFNOT.OP/ & Conditionally jump to a label \tabularnewline
+\rinline/POP.OP/ & Remove the top of stack value \tabularnewline
+\rinline/LDCONST.OP/ & Push a constant from the constant pool \tabularnewline
+\rinline/GETVAR.OP/ & Look up the symbol binding and push it \tabularnewline
+\rinline/SETVAR.OP/ & Update the symbol binding \tabularnewline
+\rinline/MAKEPROM.OP/ & Create promise from a call argument \tabularnewline
+\rinline/CALL.OP/ & Do function call \tabularnewline
+\rinline/CALLBUILTIN.OP/ & Call builtin function \tabularnewline
+\rinline/CALLSPECIAL.OP/ & Call special function \tabularnewline
+\rinline/MAKECLOSURE.OP/ & Create closure (with environment) \tabularnewline
+\rinline/ADD.OP/ & Arithmetic binary plus \tabularnewline
+\rinline/LT.OP/ & Relational less than \tabularnewline
+\rinline/STARTASSIGN.OP/ & Prepare for subassignment \tabularnewline
+\rinline/ENDASSIGN.OP/ & Clean up after subassignment \tabularnewline
+\rinline/ISNULL.OP/ & Test if top of stack is \rinline/NULL/ \tabularnewline
+\rinline/COLON.OP/ & Create integer sequence \tabularnewline
 \bottomrule
 \end{longtable}
 
-The compiler itself has in its heart the recursive function \rinline/cmp/ that visits the AST of a given expression. It passes along a code buffer object (that contains the instruction stream and the constant pool) and a context object. When generating code, it writes into the code buffer, and uses the context to decide \todo[cntxt]
+The compiler itself has in its heart the recursive function \rinline/cmp/ that visits the AST of a given expression. It passes along a code buffer object (that contains the instruction stream and the constant pool) and a context object. When generating code, it writes into the code buffer, and uses the context to guide the compilation (it carries along infromation such as whether the expression should be followed by a return, if the result is ignored or not or if the expression is in a loop).
 
-The objects that are not self-evaluating are funcion calls, variable references, bytecode objects and promises. The rest is treated as being a constant. Bytecode objects and promises should not appear as literals in code, so they cause a compilation error if encountered.
+The expressions that are not self-evaluating are funcion calls, variable references, bytecode objects and promises. The rest is treated as being a constant. Bytecode objects and promises should not appear as literals in code, so they cause a compilation error if encountered.
 
-The constant objects are compiled by inserting the object into constant pool and generating a load instruction such as \rinline/LDCONST.OP/ (that takes as an argument the index into the constant pool of the object).
+Constant expressions are compiled by inserting the object into constant pool and generating a load instruction such as \rinline/LDCONST.OP/ (that takes as an argument the index into the constant pool of the object).
 
 For variable references, the symbol is inserted into the constant pool and then a \rinline/GETVAR.OP/ instruction is emitted (although there is a special instruction for the ``dot-dot-names'' such as \rinline/..1/).
 
-Everything else is a function call. When compiling a function call, multiple steps are required. First, the function to call has to be compiled. Usually this involves emitting an instruction that looks up the function by its name (similar to variables, but using the \rinline/GETFUN.OP/ instead), but 
+Everything else is a function call. When compiling a function call, multiple steps are required. First, the function to call has to be compiled. Usually this involves emitting an instruction that looks up the function by its name, but sometimes also compiling an expression that evaluates to a function. Then the arguments are compiled and code that prepares them on the stack is emitted. Finally, the call instruction is generated.
 
-In the interpreter there are four types of objects that are not treated as constants, i.e. as
-evaluating to themselves: function calls of type "language", variable references of type "symbol",
-promises, and byte code objects. Neither promises nor byte code objects should appear as literals
-in code so an error is signaled for those.
+Since the compiler uses only a single pass, it has limited options of optimizing the generated code. The only optimization it performs, apart from those described in the next section, is constant folding. This is a very useful transformation that attempts to replace subtrees of an expression's AST that are constant (not only self-evaluating, but rather always evaluating to the same result) with the constant result.
 
-\todo[constant folding]
+Currently, constant folding is performed (depending on compiler options) on ``small'' expressions that consist of self-evaluating expressions, select base variables (like \rinline/pi/) and calls to some select base math functions (like \rinline/sqrt/ or \rinline/sin/). In the current version, no deoptimization is possible.
 
-\subsection{BC compiler assumptions\laber{assumptions}}
+\subsection{BC compiler assumptions\label{assumptions}}
 
-\todo[cenv]
-When dealing with a language as dynamic as R, one needs to be very careful to distinguish what happens when. For example, in C, a program is compiled ahead of time into a binary executable format, and this binary is later executed independently of the compilation process. This is true for R as well, in the sense that compilation has to come before execution, however, both steps now take place at the runtime of the virtual machine of R. That means that the state of the runtime system that the compiler sees can be changed in the window of time between compile time and running time of the bytecode.
+When dealing with a language as dynamic as R, one needs to be very careful to distinguish compile time from execution time, and in particular to realize that between the two there is a window during which the state of the program can change.
+
+It was explained earlier (see listing \ref{lst:arith-plus}) that everything that happens in R is a function call, even constructs that have a special syntactic meaning, like \rinline/if/, \rinline/while/, \rinline/break/ etc.
+
+Furthermore, R uses lexical scoping. When the user starts an interactive session, they work in the global environment, which is the lowest environment in the hierarchy of environments known as the search path. The base environment (where all the default R bindings are defined) as well as any loaded packages are its ancestors in the search path. It is therefore possible to shadow the default bindings by creating new bindings that are found earlier on the search path.
+
+Taking all this into consideration, to be conservative the compiler would have to compile everything as a function call, and then, at runtime, look up the current value of the callee binding and perform the call. Unfortunately, this almost completely negates the benefits of having a compiler at all, because the call is exactly what the AST interpreter does.
+
+For this reason, the compiler assumes about certain functions that their meaning does not change in the meantime between compilation and execution. This is quite a reasonable assumption, since bindings for these special and builtin functions are rarely redefined, and it allows them to be properly compiled.
+
+As a downside, the compiler produces code that is incorrect if the assumptions do not hold. Moreover, the bytecode interpreter has no way of telling that the code became incorrect, so it just executes it without any warning or error. To demonstrate, consider the code in listing \ref{lst:break-plus}.\footnote{JIT needs to be turned off for this.}
+
+\begin{listing}[htbp]
+  \caption{\label{lst:break-plus}Breaking the compiler}
+  \begin{rcode}
+> f <- function(n) n + 1
+> fc <- compiler::cmpfun(f)
+> c(f(1), fc(1))
+[1] 2 2
+> `+` <- `-`
+> c(f(1), fc(1))
+[1] 0 2
+  \end{rcode}
+\end{listing}
+
+The reason for this behavior can be seen in listing \ref{lst:disasm-broken} which shows the relevant part of the disassembled \rinline/fc/ function. The \rinline/`+`/ was inlined at compile time (because at the time, it really was an addition). When executing the function for the second time, however, the meaning of \rinline/`+`/ was actually subtraction, and this was not reflected in the bytecode.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:disasm-broken}Reason for the erroneous result}
+  \begin{rcode}
+list(8L,
+     GETVAR.OP, 1L,
+     LDCONST.OP, 2L,
+     ADD.OP, 0L,
+     RETURN.OP)
+  \end{rcode}
+\end{listing}
+
+To reduce the chance of such errors, the compiler keeps track of local and global bindings visible at compile time. If a shadowing is detected the function in question is not inlined.
 
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \section{Why is R hard to optimize}
 
-\todo \autocite{inferno} \autocite{design} \autocite{hadley}
+\autocite{inferno} \autocite{design} \autocite{hadley}
 \todo[cite: https://cran.r-project.org/doc/manuals/R-lang.html
 section 6 and 2, hadley]
 
@@ -451,8 +503,8 @@ On top of that, R is a very dynamic language that gives a very high degree of fr
 
 Even though R did not go as far as Lisp which makes no distinctions between programs and data, it provides ways to transform code into text and the other way round (namely, the functions \rinline/parse/ and \rinline/deparse/).
 
-Non-standard evaluation and metaprogramming are possible by leveraging delayed evaluation and using funcions like \rinline/substitute/ (that returns the parse tree for an unevaluated expression and at the same time possibly modifies it), \rinline/quote/ (that simply returns its argument unevaluated) and \rinline/eval/ (that evaluates an expression in a specified environment). R also provides means for creating embedded domain specific languages (e.g., the formula specification or the ``grammar of graphics'' of ggplot2\todo[about ggplot2]).
+Non-standard evaluation and metaprogramming are possible by leveraging delayed evaluation and using funcions like \rinline/substitute/ (that returns the parse tree for an unevaluated expression and at the same time possibly modifies it), \rinline/quote/ (that simply returns its argument unevaluated) and \rinline/eval/ (that evaluates an expression in a specified environment). R also provides means for creating embedded domain specific languages (e.g., the formula specification or the ``grammar of graphics'' of ggplot2).\footnote{\rinline/ggplot2/ (homepage: \url{http://ggplot2.org/}) is another package by Hadley Wickham. It is widely used for data visualization.}
 
-Finally, R being the mixture of different paradigms that it is makes it quite difficult to reason about the code and optimize it. Adding together functional style, object systems, laziness, introspection, dynamic evaluation, computation on the language itself, explicit environment manipulation and more creates a very complex result.
+To conlude, R being the mixture of different paradigms that it is makes it quite difficult to reason about the code and optimize it. Adding together functional style, object systems, laziness, introspection, dynamic evaluation, computation on the language itself, explicit environment manipulation and more creates a very complex result.
 
-Also, R has its semantics defined by its one major implementation (although attempts have been made to formalize the language, e.g. \autocite{design}). This further complicates things as there is no formal description of the language.
+Additionally, R has its semantics defined by its one major implementation (although attempts have been made to formalize the language, e.g., \autocite{design}). This further complicates things as there is no formal description of the language.

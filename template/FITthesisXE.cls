@@ -245,7 +245,7 @@
 
 		% define background color for listing box; it should be passed as parametr
 		% to every minted block, e.g. \begin{minted}[bgcolor=codebg]{json}
-		\definecolor {codebg} {rgb} {0.92, 0.92, 0.92}
+		\definecolor {codebg} {rgb} {0.9, 0.9, 0.9}
 
 		% use per-chapter numbering
 		\counterwithin {listing} {chapter}

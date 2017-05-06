@@ -1,31 +1,601 @@
 \chapter{Improvements\label{improvements}}
 
-In this chapter I~will discuss in detail the changes made to RIR in an attempt to bring it up to speed with GNU R byte-compiled code.
+In this chapter I~will discuss in detail the changes made to RIR in an attempt to bring it up to speed with GNU R byte-compiled code. The improvements can be divided into several categories:
 
-...
+The first group consists of the extensions of the bytecode instruction set itself. Here, new instructions are added for some functions that GNU R inlines but which were missing in the RIR (and thus were compiled as standard calls).
 
-\section{Refactoring RIR interpreter}
+The next section talks about changes made to the RIR compiler. These consist mainly of loop context handling.
 
-As it turned out, a lot of speedup could be gained by changing the RIR bytecode interpreter. 
+Finally, the RIR interpreter loop itself was refactored to run more efficiently, and this is described in the last section of this chapter.
 
-\todo[to compiler, to ir, to interpreter, use code snippets, describe microbenchmarks, theory (threaded code...)]
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
-\todo[everywhere: motivation - how it helped in microbenchmarks, then how in real]
+\section{Instruction set extensions}
+
+The GNU R bytecode compiler assumes certain invariants about the code at compile time, as was described in section \ref{assumptions}. Of course, the instruction set of the default compiler reflects this. Having specialized bytecode instructions for specific tasks is where virtual machines generally get a lot of speedup.\todo[cite: http://janvitek.org/pubs/vee14.pdf]
+
+The first step was to work through the documentation of the GNU R bytecode compiler \autocite{compiler}. Here, all the inlining done by default by the compiler was determined and experiments were carried out to compare their list to RIR, usually by using the disassemblers of both GNU R and RIR, examining the results of compilation of different calls and studying the C source codes.
+
+The GNU R compiler has four different levels of the \emph{optimize} option (from 0 to 3) and the amount of inlining performed is directly influenced by this setting. The default value is 2, at which the compiler inlines functions in the base packages (including those that are syntactically special or considered core language functions) that are not shadowed at compile time (by function arguments and local bindings). Some of these are listed in table \ref{tab:inlined}.
+
+\begin{longtable}[c]{@{}lcl@{}}
+\caption{Examples of inlined functions\label{tab:inlined}} \tabularnewline
+\toprule
+Function & Optimize level & Note \tabularnewline
+\midrule
+\endfirsthead
+\toprule
+Function & Optimize level & Note \tabularnewline
+\midrule
+\endhead
+\rinline/`+`/, \rinline/`-`/, \rinline/`*`/, \rinline/`<`/, \rinline/`==`/ etc. & 2 & Operators \tabularnewline
+\rinline/`(`/ & 2 & Expression grouping \tabularnewline
+\rinline/`{`/ & 2 & Block \tabularnewline
+\rinline/`if`/ & 2 & Control flow \tabularnewline
+\rinline/`repeat`/, \rinline/`while`/, \rinline/`for`/ & 2 & Control flow \tabularnewline
+\rinline/`break`/, \rinline/`next`/ & 2 & Control flow \tabularnewline
+\rinline/return/ & 2 & Control flow \tabularnewline
+\rinline/function/ & 2 & Closure constructor \tabularnewline
+\rinline/sin/, \rinline/cos/, \rinline/floor/, \rinline/sign/ etc. & 3 & 1 arg. math \tabularnewline
+\rinline/is.null/, \rinline/is.atomic/ etc. & 3 & Predicates \tabularnewline
+\bottomrule
+\end{longtable}
+
+The inlining happens in both GNU R and RIR when the compiler sees a function call. Both first try to inline calls to special and builtin functions. If the inlining fails, the compilers fall back to the standard call mechanism, and that means calling the same C routines that the AST interpreter uses, effectively running interpreted code.
+
+Thus the way to speed things up is to add more special cases that handle code that originally fell back to the AST interpreter, the trade-off being that the generated code is not always safe (see listing \ref{lst:break-plus}).
+
+When adding a new bytecode instruction, several steps have to be performed. First, the instruction has to be added to the instruction list in the \emph{insns.h} header file. The new instruction needs to have a name and also have some properties specified.
+
+These are \emph{imm} (the number of immediate arguments that the instruction expects -- immediates are inserted directly into the code stream), \emph{pop} and \emph{push} (the number of elements that the instruction removes from and adds to the stack, respectively) and \emph{pure} (a flag that says if the instruction has side-effects, e.g., it can force a promise -- purity is good to know for optimization purposes).
+
+The format is displayed in listing \ref{lst:def-instr}. \cinline/DEF_INSTR/ is a C preprocessor macro that needs to be defined each time this header file is included, and can be used to get information about the instructions. For instance, a method that returns the numer of immediates is shown in listing \ref{lst:imm}.
 
 \begin{listing}[htbp]
-  \caption{\label{xxx}\todo[write listing caption] microbenchmark (run with jit enable 2)}
-  \begin{minted}[bgcolor=codebg]{r}
-f <- function() {
-    i <- 10000000L
-    while (i > 0) {
-        i <- i - 1
-    }
-}
-system.time(f())[[3]]  # jit everything
-t <- c()
-for (x in 1:15) t <- c(t, system.time(f())[[3]])
-mean(t[5:15])  # only include measurments after warmup
-  \end{minted}
+  \caption{\label{lst:def-instr}Adding new opcode to RIR bytecode}
+  \begin{ccode}
+DEF_INSTR(gt_, 0, 2, 1, 0)
+  \end{ccode}
 \end{listing}
 
-\todo[relational operators, fast paths for logical args, unary plus minus not, loop contexts, bc cleanup, colon, superassing, inlining of instructions in main loop, threaded code, inline stack funcs, loops refactor, disable guardfuns]
+\begin{listing}[htbp]
+  \caption{\label{lst:imm}Getting number of immediates for instructions}
+  \begin{cppcode}
+static unsigned immCount(Opcode bc) {
+    switch (bc) {
+#define DEF_INSTR(name, imm, opop, opush, pure)                       \
+    case Opcode::name:                                                \
+        return imm;
+#include "insns.h"
+    default:
+        assert(false);
+        return 0;
+    }
+}
+  \end{cppcode}
+\end{listing}
+
+Second, the instruction has to be manually added at some places in the class that implements the bytecode instruction type and is used throughout the compiler and the analysis framework. This step is mostly mechanical.
+
+After that, the compiler must be taught to use the instruction. This is done during the inlining step. A~special case for the function call that the instruction implements has to be added. In this special case, the instruction opcode, together with any other instructions needed (such as the guard instructions explained in chapter \ref{rir}) are inserted into a code stream. See listing \ref{lst:cmp-special} for a code snippet that demonstrates this.
+
+It is also here while the instructions are being added into the stream that constant pool is filled (since the indices of constant pool objects are needed as immediates).
+
+\begin{listing}[htbp]
+  \caption{\label{lst:cmp-special}RIR compiler inlining}
+  \begin{cppcode}
+bool compileSpecialCall(Context& ctx, SEXP ast, SEXP fun, SEXP args_) {
+    RList args(args_);
+    CodeStream& cs = ctx.cs();
+    // ...
+    if (fun == symbol::Add && args.length() == 1) {
+        // emit instructions...
+        return true;
+    }
+    // ...
+    return false;
+}
+  \end{cppcode}
+\end{listing}
+
+Finally, the instruction itself has to be implemented and added to the dispatching mechanism in the interpreter. This is where the code that executes the instruction is located. The skeleton of the RIR evaluator can be seen in listing \ref{lst:rir-eval}. \cinline/BEGIN_MACHINE/, \cinline/INSTRUCTION/ and \cinline/LASTOP/ are all C macros that implement dispatching.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:rir-eval}RIR evaluator}
+  \begin{ccode}
+SEXP evalRirCode(Code* c, Context* ctx, SEXP env, unsigned numArgs) {
+    /* ... */
+    BEGIN_MACHINE {
+        /* ... */
+        INSTRUCTION(eq_) { /* body */ }
+        /* ... */
+        LASTOP;
+    }
+eval_done:
+    return ostack_pop(ctx);
+}
+  \end{ccode}
+\end{listing}
+
+Summary of the various newly added instructions is in table \ref{tab:new-instr}. One that does not fit anywhere is \cinline/nop_/. As one would expect, it does not do anything, takes no immediates or stack arguments and is, by definition, pure. It will be useful later when eliminating loop contexts. The rest are described in the following sections.
+
+\begin{longtable}[c]{@{}lccccl@{}}
+\caption{Newly added BC instructions\label{tab:new-instr}} \tabularnewline
+\toprule
+Name & \emph{imm} & \emph{pop} & \emph{push} & \emph{pure} \tabularnewline
+\midrule
+\endfirsthead
+\toprule
+Name & \emph{imm} & \emph{pop} & \emph{push} & \emph{pure} \tabularnewline
+\midrule
+\endhead
+\cinline/nop_/ & 0 & 0 & 0 & yes \tabularnewline
+\cinline/gt_/ & 0 & 2 & 1 & no \tabularnewline
+\cinline/le_/ & 0 & 2 & 1 & no \tabularnewline
+\cinline/ge_/ & 0 & 2 & 1 & no \tabularnewline
+\cinline/eq_/ & 0 & 2 & 1 & no \tabularnewline
+\cinline/ne_/ & 0 & 2 & 1 & no \tabularnewline
+\cinline/uplus_/ & 0 & 1 & 1 & no \tabularnewline
+\cinline/uminus_/ & 0 & 1 & 1 & no \tabularnewline
+\cinline/not_/ & 0 & 1 & 1 & no \tabularnewline
+\cinline/colon_/ & 0 & 2 & 1 & no \tabularnewline
+\cinline/ldvar2_/ & 1 & 0 & 1 & no \tabularnewline
+\cinline/stvar2_/ & 1 & 1 & 0 & no \tabularnewline
+\bottomrule
+\end{longtable}
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\subsection{Relational operators}
+
+Originally, RIR only had \rinline/`<`/ out of the six usual relational operators. The rest, \rinline/`>`/, \rinline/`<=`/, \rinline/`>=`/, \rinline/`==`/ and \rinline/`!=`/ were being compiled as calls to the builtin C routines, but were added as new .
+
+All these instructions behave in the same way as arithmetic binary operators do. They take no immediate arguments, and instead expect their operands to be left for them at the top of the stack. They pop two values off the stack, compute the respective operation, and push one result back. They are impure, since their arguments may be promises in which case they would have to force them.\footnote{Because R has \rinline/eval/, any arbitrary code may be run when forcing a promise.}
+
+The speedup of adding these operations as standalone instructions lies in the fact that they are quite often called with ``scalar'' arguments, and as was mentioned before, R does not have any scalar values, since they are simply boxed in vectors of length one. If the operands are of a suitable type, and both have a single element, then a fast path can be taken and a call to the standard C builtin avoided.
+
+Listing \ref{lst:eq1} shows the body of the \cinline/eq_/ instruction. \cinline/INSTRUCTION/, \cinline/DO_RELOP/ and \cinline/NEXT/ are C preprocessor macros. The code first gets the two operands from the stack, then it performs the operation, puts the result back on the stack, and after that moves the control to the next instruction.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:eq1}The \cinline/eq_/ instruction}
+  \begin{ccode}
+INSTRUCTION(eq_) {
+    SEXP lhs = ostack_at(ctx, 1);
+    SEXP rhs = ostack_at(ctx, 0);
+    DO_RELOP(==);
+    ostack_popn(ctx, 2);
+    ostack_push(ctx, res);
+    NEXT();
+}
+  \end{ccode}
+\end{listing}
+
+In listing \ref{lst:eq2} the fast paths are shown. After checking the types and lengths of the two operands, either a \rinline/NA/ value is assigned to the result, or the particular operation is performed. This is possible because internally R uses the C types \cinline/int/ and \cinline/double/, so the actual comparison can be done in plain C.
+
+For the \rinline/`<`/ operator, only combinations of integer and double scalars had fast paths implemented. This was amended and for all relational operators there is now also a fast path for comparing two logical values. Furthermore, the relational operators do not need to allocate a new vector for their result, since the R logical objects are singletons and they are simply assigned to the result.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:eq2}The \cinline/DO_RELOP/ macro}
+  \begin{ccode}
+#define DO_RELOP(op) do {                                             \
+    if (IS_SIMPLE_SCALAR(lhs, LGLSXP) &&                              \
+        IS_SIMPLE_SCALAR(rhs, LGLSXP)) {                              \
+        /* handle NA */                                               \
+        res = *LOGICAL(lhs) op *LOGICAL(rhs) ? R_TrueValue            \
+                                             : R_FalseValue;          \
+        break;                                                        \
+    } else if (/* ... */) {                                           \
+        /* handle real + real, real + int, int + real, int + int */   \
+    }                                                                 \
+    BINOP_FALLBACK(#op);                                              \
+} while (false)
+  \end{ccode}
+\end{listing}
+
+If the fast paths fail, the instruction falls back to the standard routine that handles vectorized operations, vector recycling, type promotion and also any possible problems (e.g., concerning incompatible operand types). This is shown in listing \ref{lst:eq3}. For every instruction, a static variable is used in this case to cache the builtin function (or rather a pointer to it), so that the lookup (which is an expensive operation) is only performed once. Here, the operands are added to a linked list (that the builtin C routine expects), and the builtin is called.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:eq3}The \cinline/BINOP_FALLBACK/ macro}
+  \begin{ccode}
+#define BINOP_FALLBACK(op) do {                                       \
+    static SEXP prim = NULL;                                          \
+    static CCODE blt;                                                 \
+    if (!prim) {                                                      \
+        /* look up builtin */                                         \
+    }                                                                 \
+    SEXP call = getSrcForCall(c, pc - 1, ctx);                        \
+    SEXP argslist = CONS_NR(lhs, CONS_NR(rhs, R_NilValue));           \
+    ostack_push(ctx, argslist);                                       \
+    res = blt(call, prim, argslist, env);  /* call builtin */         \
+    ostack_pop(ctx);                                                  \
+} while (false)
+  \end{ccode}
+\end{listing}
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\subsection{Unary operators}
+
+Unary operators are in principle the same as binary. If their operand has one element and appropriate type, a fast path can be added. The logical negation has a fast path for logical scalars in addition to numeric.
+
+R has two arithmetic unary operators, \rinline/`+`/ and \rinline/`-`/, and logical negation \rinline/`!`/. These are all rather straightforward, they do not have immediates, pop one argument and push one result back.
+
+Since the instruction bodies correspond closely to those of binary operators (except they only have a single operand), a snippet of a compiler code that emits these is shown instead (listing \ref{lst:cmp-unary}). It is taken out of a function that performs the inlining. It returns \cppinline/true/ if successful, and \cppinline/false/ otherwise, in which case the compilation proceeds to the standard call mechanism (i.e. emitting a \cinline/ldfun_/ instruction, compiling the call arguments as promises and finally emitting a \cinline/call_/).
+
+In the compiler, inserting into the code stream \cppinline/cs/ is done using the overloaded \cppinline/operator <</. Factory methods are used to create the bytecode instruction objects (from their arguments, the immediates for the instructions are generated). A~reference to the original AST of the compiled call is saved into the code stream, too.
+
+The bytecode runtime system uses a stack architecture, therefore using recursion ties in elegantly. First, a guard instruction is inserted (see chapter \ref{rir} for explanation). Then the bytecode that computes the value of the operand is emitted recursively. Lastly, the operator instruction is added that processes the result left for it on the stack.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:cmp-unary}The piece of code emitting unary operators}
+  \begin{cppcode}
+if (args.length() == 1 &&
+    (fun == symbol::Add || fun == symbol::Sub ||
+     fun == symbol::Not)) {
+    cs << BC::guardNamePrimitive(fun);
+    compileExpr(ctx, args[0]);
+    if (fun == symbol::Add)
+        cs << BC::uplus();
+    else if (fun == symbol::Sub)
+        cs << BC::uminus();
+    else if (fun == symbol::Not)
+        cs << BC::Not();
+    cs.addSrc(ast);
+    return true;
+}
+  \end{cppcode}
+\end{listing}
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\subsection{The colon operator}
+
+The colon operator \rinline/`:`/ in R provides a convenient way to generate sequences. It is used very often, notably in \rinline/for/ loops as an integer control sequence for the loop variable. The values it generates can be both increasing and decreasing, and they differ by 1. If the starting value is an integer, then the vector is also integer.
+
+A~\cinline/colon_/ instruction was added that, similarly to arithmetic operators, takes no immediates, expects two operands on the top of the stack and pushes back the resulting sequence object. It is impure, because, same as the operators, its operands could be unevaluated promises.
+
+Adding it to the compiler was actually the same as adding an arithmetic binary operator. The instruction itself adds a fast path for combinations of integer and double operands (the doubles apply only if they represent an integer up to a rounding error). The fast path allocates an integer vector of appropriate length and fills it with the sequence values.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:colon}The \cinline/colon_/ instruction}
+  \begin{ccode}
+INSTRUCTION(colon_) {
+    /* ... */
+    if (IS_SIMPLE_SCALAR(lhs, INTSXP)) {
+        int from = *INTEGER(lhs);
+        if (IS_SIMPLE_SCALAR(rhs, INTSXP)) {
+            /* ... */
+        } else if (IS_SIMPLE_SCALAR(rhs, REALSXP)) {
+            double to = *REAL(rhs);
+            if (from != NA_INTEGER && to != NA_REAL &&
+                    R_FINITE(to) && INT_MIN <= to &&
+                    INT_MAX >= to && to == (int)to) {
+                res = seq_int(from, (int)to);
+            }
+        }
+    } else if (IS_SIMPLE_SCALAR(lhs, REALSXP)) {
+        /* real + int, real + real */
+    }
+    if (res == NULL) {
+        BINOP_FALLBACK(":");
+    }
+    /* ... */
+}
+  \end{ccode}
+\end{listing}
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\subsection{Superassignment}
+
+Superassignment operator \rinline/`<<-`/ differs from normal assignment in that it works in an enclosing evnironment. Thus, the local environment where superassignment occurs is skipped during the binding lookup. For simple assignment of the form \rinline/x <<- y/, that is all there really is.
+
+The semantics of a complex subset assignment are a bit more complicated, as is shown in listing \ref{lst:subassign} (taken from \autocite{subset}), because it is not a matter of simply creating or changing a binding, but a part of a binding's object has to be extracted and modified first. This model applies recursively for still more complex assignments.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:subassign}Complex subset assignment}
+  \begin{rcode}
+# The result of this command...
+x[3:5] <- 13:15
+# ... is as if the following had been executed
+`*tmp*` <- x
+x <- "[<-"(`*tmp*`, 3:5, value=13:15)
+rm(`*tmp*`)
+  \end{rcode}
+\end{listing}
+
+The target object is looked up and stored into a variable \rinline/`*tmp*`/ (it is not recommended to use this name for anything in user code, since, as a side-effect, this will overwrite and then delete it). Then, a function name is constructed from the left-hand side call expression by appending an assignment arrow. The resulting name must refer to a function that takes the same arguments as the original one as well as an additional value argument. This function is called, the right-hand side expression is passed as the value, and its result is stored to the target. Then the temporary binding is removed.
+
+For superassignment the same principles apply, however, the target binding (and only the target binding) is looked up in an enclosing evnironment of the expression.
+
+Two new bytecode instructions were added for handling the superassignment semantics of looking up bindings. The first is for loading a symbol. It takes one immediate argument, an index into the constant pool where it finds the symbol to look up. It does not pop anything from the stack but pushes one object, the value of the binding. The second is symmetrical to the first, it takes an immediate constant pool index, pops one object, does not push anything. Both are impure: the load may evaluate a promise, and the store modifies non-local bindings (unlike normal \cinline/stvar_/ that writes only into the local environment and hence is pure).
+
+These new bytecodes were added to the compiler at a point where it inlines normal assignment and subset assignment.
+
+In the inctructions themselves, the environment for looking up bindings gets replaced with its enclosing environment. This is shown in listing \ref{lst:stvar2}, where the call to R internal \cinline/setVar/ function takes as the last argument the enclosing environment of the current one. The symbol is read from the constant pool at the index determined by the immediate. The value to store is taken from the stack.
+
+One additional detail comes up: how the program counter (PC) is manipulated. With every instruction, the dispatcher reads its opcode from the current position of the PC and moves the PC to the next position (opcodes take up a single byte). If the instruction has any immediates, it is up to the instruction code to manipulate the PC accordingly. This is done by the \cinline/advanceImmediate/ macro.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:stvar2}The \cinline/stvar2_/ instruction}
+  \begin{ccode}
+INSTRUCTION(stvar2_) {
+    SEXP sym = readConst(ctx, readImmediate());
+    advanceImmediate();
+    SLOWASSERT(TYPEOF(sym) == SYMSXP);  /* for debugging only */
+    SEXP val = ostack_pop(ctx);
+    INCREMENT_NAMED(val);
+    setVar(sym, val, ENCLOS(env));
+    NEXT();
+}
+  \end{ccode}
+\end{listing}
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\section{Compiler modifications}
+
+In this section, some changes that were made directly to the compiler are discussed. Included at the end is also a section about loop refactoring that was eventually not used.
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\subsection{Loop context removal}
+
+One of the consequences of lazy evaluation in R is that the control flow statements \rinline/break/ and \rinline/next/ can in fact be non-local jumps (i.e. across multiple stack frames).\footnote{This is true for \rinline/return/ as well, however non-local returns are not handled by loop contexts.} Listing \ref{lst:non-local-break} presents a possible way of producing non-local \rinline/break/. The arguments to the \rinline/foo/ function are wrapped in promises, and may or may not be evaluated. However, if the second argument ever gets evaluated, it has to break out of the \rinline/repeat/ loop that called \rinline/foo/.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:non-local-break}Context for \rinline/break/ required}
+  \begin{rcode}
+function(n) {
+    repeat {
+        foo(n, break)
+        n <- n - 1
+    }
+}
+  \end{rcode}
+\end{listing}
+
+To implement this behavior, C long jumps have to be used. Thus, both GNU R and RIR have a bytecode instruction that sets up the long jump, and another that cleans up after the loop finishes.
+
+Quite often the runtime loop context is not needed, as is shown in listing \ref{lst:local-break}. In such cases only local jump suffices because the \rinline/break/ can only ever be evaluated in the same stack frame.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:local-break}Safe \rinline/break/}
+  \begin{rcode}
+function(n) {
+    repeat {
+        if (n <= 0) break
+        n <- n - 1
+    }
+}
+  \end{rcode}
+\end{listing}
+
+The rule for when the runtime context is needed and when not is as follows. If a loop contains any \rinline/break/ or \rinline/next/ statements that are wrapped in a promise, the loop context is needed. However, if all such statements are wrapped inside their promises in another loop (or the closure constructor \rinline/function/), the context can still be left out.
+
+RIR used to create the runtime loop contexts for all loops, so a mechanism was added to enable skipping them in the safe cases. The compiler uses a \cppinline/Context/ object that holds a stack of \cppinline/CodeContext/ objects. Each code context in turn contains a code stream for the generated code and its own stack of \cppinline/LoopContext/ objects. The original structure can be seen in listing \ref{lst:context}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:context}RIR compiler context}
+  \begin{cppcode}
+class Context {
+  public:
+    class LoopContext { /* ... */ };
+    class CodeContext {
+      public:
+        CodeStream cs;
+        std::stack<LoopContext> loops;
+        // ...
+    };
+    std::stack<CodeContext> code;
+    // ...
+};
+  \end{cppcode}
+\end{listing}
+
+A~new \cppinline/CodeContext/ was pushed when the compiler entry point was invoked, and then each time a promise was compiled. The system of mutually recursive compiler functions then worked in the code context that was on the top of the stack. When a loop was encountered, a new \cppinline/LoopContext/ was pushed to the stack of the top code context.
+
+The loop context objects contain the target labels for the local control flow. A~new flag was added that signals whether a runtime loop context is needed for the given loop. The class is shown in listing \ref{lst:loop-context}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:loop-context}Loop context class}
+  \begin{cppcode}
+class LoopContext {
+  public:
+    LabelT next_;
+    LabelT break_;
+    bool context_needed_ = false;
+    LoopContext(LabelT next_, LabelT break_)
+        : next_(next_), break_(break_) {}
+};
+  \end{cppcode}
+\end{listing}
+
+To implement the rules for skipping runtime loop contexts, a \cppinline/PromiseContext/ class was added that is used when the compiler compiles a promise. This is shown in listing \ref{lst:prom-cmp}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:prom-cmp}Compiling a promise}
+  \begin{cppcode}
+FunIdxT compilePromise(Context& ctx, SEXP exp) {
+    ctx.pushPromiseContext(exp);  // instead of CodeContext
+    compileExpr(ctx, exp);
+    ctx.cs() << BC::ret();
+    return ctx.pop();
+}
+  \end{cppcode}
+\end{listing}
+
+The \cppinline/CodeContext/ was changed to store a pointer to its parent (a context below it on the stack). This change allows for finding out transitively if the compiler is in any loop, not just one from the current context, and also to set the \cppinline/LoopContext/ flag in the first enclosing loop. The new functionality is presented in listing \ref{lst:code-context-parent}
+
+\begin{listing}[htbp]
+  \caption{\label{lst:code-context-parent}Hierarchy of \cppinline/CodeContext/ objects}
+  \begin{cppcode}
+class CodeContext {
+  public:
+    // ...
+    CodeContext* parent;
+    bool inLoop() {
+        return !loops.empty() || (parent && parent->inLoop());
+    }
+    void setContextNeeded() {
+        if (loops.empty() && parent)
+            parent->setContextNeeded();
+        else
+            loops.top().context_needed_ = true;
+    }
+};
+  \end{cppcode}
+\end{listing}
+
+The \cppinline/PromiseContext/ class inherits from \cppinline/CodeContext/. When compiling \rinline/break/ or \rinline/next/ in a promise, the parent context (i.e. where the promise was created) is notified to set the loop context flag. This is shown in listing \ref{lst:prom-context}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:prom-context}Promise context class}
+  \begin{cppcode}
+bool loopIsLocal() override {
+    if (loops.empty()) {
+        parent->setContextNeeded();  // set flag in parent
+        return false;  // and do not inline
+    }
+    return true;
+}
+  \end{cppcode}
+\end{listing}
+
+One last missing piece is being able to remove an instruction from a code stream. The stream originally did not have this functionality, but it was added to allow removing unnecessary loop context instructions. The trick used is to replace the instruction opcode together with its immediates by \cinline/nop_/ instructions (which get removed later during BC cleanup).
+
+Finally, when compiling the loops, the instruction \cinline/beginloop_/ is emitted just as before. However, after the loop is compiled, it is removed from the stream if the context is not needed. The code for the \rinline/repeat/ loop is shown in listing \ref{lst:repeat}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:repeat}\rinline/repeat/ loop inlining}
+  \begin{cppcode}
+if (fun == symbol::Repeat) {
+    // ...
+    ctx.pushLoop(loopBranch, nextBranch);
+    unsigned beginLoopPos = cs.currentPos();
+    cs << BC::beginloop(nextBranch)
+       << loopBranch;
+    compileExpr(ctx, body);
+    cs << BC::pop() << BC::br(loopBranch)
+       << nextBranch;
+    if (ctx.loopNeedsContext())
+        cs << BC::endcontext();
+    else
+        cs.remove(beginLoopPos);
+    cs << BC::push(R_NilValue) << BC::invisible();
+    ctx.popLoop();
+    return true;
+}
+  \end{cppcode}
+\end{listing}
+
+Compiling \rinline/next/ and \rinline/break/ then involves checking with the context if inlining is ok (i.e. the statement is not in a promise or it is in a loop in a promise). The code for inlining \rinline/break/ is in listing \ref{lst:break}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:break}\rinline/break/ inlining}
+  \begin{cppcode}
+if (fun == symbol::Break) {
+    if (!ctx.inLoop()) return false;
+    if (ctx.loopIsLocal()) {
+        cs << BC::guardNamePrimitive(fun)
+           << BC::br(ctx.loopBreak())
+           << BC::push(R_NilValue);
+        return true;
+    }
+}
+  \end{cppcode}
+\end{listing}
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\subsection{BC cleanup}
+
+A~few small improvements were made to the optimization pass that RIR runs on the bytecode after it is compiled. The recursive compiler and possibly other transformations applied to the bytecode sometimes produce sequences of BC instructions where some are redundant or can be replaced. Examples of this include loading a variable twice or pushing to the stack and immediately popping.
+
+The modified compilation of loops described previously produces for one some \cinline/nop_/ instructions. Moreover, the pair of instructions \cinline/pick_ 1; pick_ 1/ occured quite often. The \cinline/pick_/ instruction removes the stack element at the index given by its immediate and puts it to the top of stack. If the code picks the element just under the top of stack twice in a row, the effect is as if nothing happened. Therefore, the code in listing \ref{lst:cleanup} was added to the BC cleanup pass to fix these.
+
+The two methods are located in an analysis class that implements the visitor pattern over instructions. Thus adding new cleanup code means simply overriding the particular bytecode instruction.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:cleanup}\cinline/nop_/ and double \cinline/pick_ 1/ elimination}
+  \begin{cppcode}
+void nop_(CodeEditor::Iterator ins) override {
+    CodeEditor::Cursor cur = ins.asCursor(code_);
+    cur.remove();
+    return;
+}
+void pick_(CodeEditor::Iterator ins) override {
+    if (ins != code_.begin() &&
+        ins.asCursor(code_).bc().immediate.i == 1) {
+        auto prev = ins - 1;
+        if ((*prev).is(Opcode::pick_) && *ins == *prev) {
+            CodeEditor::Cursor cur = prev.asCursor(code_);
+            cur.remove();
+            cur.remove();
+            return;
+        }
+    }
+}
+  \end{cppcode}
+\end{listing}
+
+Finally, the cleanup analysis is run iteratively until a constant number of runs happens or the analysis reaches a fixpoint (i.e. it does not change the code anymore), whichever comes first. The constant limiting the number of runs was previously set to 2, which often left a lot of easy cleanup unfinished. This limit was therefore increased to 10.
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\subsection{Loop refactoring}
+
+Theoretically, it is possible to optimize the code generated for \rinline/while/ loops by swapping the loop's body and its condition. The intuitive way is to compile the condition first, then insert a conditional jump to the end of the body, then compile the body and jump unconditionally to the top again. In pseudocode this is shown in listing \ref{lst:cond-body}.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:cond-body}\rinline/while/ loop bytecode}
+  \begin{ccode}
+COND:
+    // code for the condition
+    brfalse_ END
+BODY:
+    // code for the body
+    br_ COND
+END:
+  \end{ccode}
+\end{listing}
+
+However, if the condition and the body are swapped, half of the jumps can be saved. The body is compiled first, then follows the condition and a conditional jump back to the body. Additionaly, a single unconditional jump is inserted before the body. Listing \ref{lst:body-cond} demonstrates this.
+
+\begin{listing}[htbp]
+  \caption{\label{lst:body-cond}Refactored \rinline/while/ loop bytecode}
+  \begin{ccode}
+    br_ COND
+BODY:
+    // code for the body
+COND:
+    // code for the condition
+    brtrue_ BODY
+END:
+  \end{ccode}
+\end{listing}
+
+Similar change can be done to \rinline/for/ loops.
+
+Unfortunately, this proved to be a slowdown rather than a speedup. This is probably caused by changing the backward jump from unconditional to conditional. Because RIR profiles the backward jumps (they signal the presence of a loop), it seems that one forward conditional jump and one backward unconditional are cheaper than a single conditional backward jump.
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+
+\section{Interpreter refactoring}
+
+As it turned out, the biggest speedup was gained by refactoring the RIR bytecode interpreter. Originally, the interpreter was quite straightforward. The main evaluator function \cinline/evalRirCode/ contained in its core an infinite loop, and in its body there was a huge switch statement with one case for each bytecode instruction.
+
+In the cases there was a call to a function that implemented the instruction. These function were defined with the C \cinline/inline/ and \cinline/static/ modifiers, and to make sure the compiler really inlined them, the GNU extension attribute \cinline/__attribute__((always_inline))/ was also specified.
+
+% However, something 
+
+% \begin{listing}[htbp]
+%   \caption{\label{lst:}}
+%   \begin{rcode}
+%   \end{rcode}
+% \end{listing}
+
+% \todo[register]
+
+% \todo[everywhere: motivation - how it helped in microbenchmarks, then how in real]
+% \todo[inlining of instructions in main loop, threaded code, inline stack funcs]
