@@ -1,22 +1,17 @@
-One paragraph stating what you researched and what your original contribution to the field is… then break into sections
-The goal of this thesis was to bring RIR, an alternative bytecode compiler and interpreter, as close as possible to GNU R in terms of performance. 
+The goal of this thesis was to bring RIR, an alternative bytecode compiler and interpreter for the R language, as close as possible in terms of performance to R's reference implementation.
 
+First, the R language and RIR were explored and their internal workings examined and compared. Experiments were carried out to discover their similarities and differences. Improvements to RIR infrastructure were implemented in three areas:
 
+New bytecode instructions were added to its instruction set and employed in its compiler.
 
-One section on what you researched and how you did it
+The compiler was extended to be more aware of its context and this was used to eliminate generating loop contexts in the common case when all loop control is local.
 
+Finally, the interpreter loop was refactored and its dispatching mechanism changed from switch-based to threaded code.
 
+All the implemented changes were evaluated using the Stootout benchmarks. Overall, the performance deficiency of RIR relative to GNU R was decreased by about 50~\%.
 
-One section on what are the main findings were… showinglinks across chapters (this explains why you chose thestructure you did)
+RIR is still under active development and further work is needed. 
 
+The abstract interpretation framework of RIR is one direction for future efforts. It can be improved and extended on one hand, and on the other be used to implement new analysis and optimization passes for RIR bytecode.
 
-
-One section on possible areas for future research
-
-
-
-Final section reminding readers of the original contribution and significance of your research to your field
-
-
-
-\todo[conclusion, future work, related work, fails - promises of consts, stoke]
+In the early stages of this thesis, unsuccessful experiments were carried out with a tool for superoptimizations called Stoke.\footnote{See \url{https://github.com/StanfordPL/stoke}} New ways of applying it to RIR could be explored.

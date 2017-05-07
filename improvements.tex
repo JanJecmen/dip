@@ -8,6 +8,21 @@ The next section talks about changes made to the RIR compiler. These consist mai
 
 Finally, the RIR interpreter loop itself was refactored to run more efficiently, and this is described in the last section of this chapter.
 
+Throughout, for ensuring that the improvements had positive effects, a kind of microbenchmarks, such as the one in listing \ref{lst:microbench}, were checked by hand in fresh sessions of GNU R (with JIT disabled and with JIT set to 2) and RIR (with JIT enabled). In the code, a function is defined and measured repeatedly. The final reported time is computed as arithmetic mean of only a tailing part of the runs. This is to ensure a proper warmup (i.e. everything is byte-compiled by the JIT and possibly the processor branch predictors warm up).
+
+\begin{listing}[htbp]
+  \caption{\label{lst:microbench}Microbenchmark code}
+  \begin{rcode}
+f <- function() {
+    i <- 10000000L
+    while (i > 0) i <- i - 1
+}
+t <- c()
+for (x in 1:10) t <- c(t, system.time(f())[[3]])
+mean(t[5:10])
+  \end{rcode}
+\end{listing}
+
 % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
 
 \section{Instruction set extensions}
