@@ -4,7 +4,7 @@ RIR is an alternative compiler for the R language.\footnote{Homepage: \url{https
 
 RIR acts as a drop-in replacement for the GNU R bytecode compiler. It requires a patched version of GNU R that makes some slight adjustments that allow the standard GNU R expression evaluator function to interface with the RIR bytecode compiler and interpreter. RIR is written in C (the interpreter) and C++ (the compiler and analysis framework) and is compiled as a shared library that can be dynamically loaded by R.
 
-Listing \ref{lst:rir} shows how to manually load RIR (although a script \emph{tools/R} is provided that does this autmatically and turns on JIT, too).
+Listing \ref{lst:rir} shows how to manually load RIR (although a script \emph{tools/R} is provided that does this automatically and turns on JIT, too).
 
 \begin{listing}[htbp]
   \caption{\label{lst:rir}Loading RIR at runtime}
@@ -40,9 +40,9 @@ Later at runtime, the GNU R instructions build a linked list of arguments on the
 
 RIR prepares the arguments at runtime and either evaluates them all eagerly or allocates them all as promises.
 
-Another example is a \rinline/for/ loop. GNU R uses three instructions that handle everyhing: one for initializing the loop variable, one for advancing it along the loop sequence, and one to clean up.
+Another example is a \rinline/for/ loop. GNU R uses three instructions that handle everything: one for initializing the loop variable, one for advancing it along the loop sequence, and one to clean up.
 
-RIR on the other hand emits insructions for every operation, such as incrementing the index variable, checking its bounds, jumping out of the loop conditionally, extracting the appropriate element of the loop sequence, storing it in the loop variable etc.
+RIR on the other hand emits instructions for every operation, such as incrementing the index variable, checking its bounds, jumping out of the loop conditionally, extracting the appropriate element of the loop sequence, storing it in the loop variable etc.
 
 In general, where GNU R uses complex instructions that have to cover a lot of work, RIR aims to achieve the same results by using lighter and more specialized instructions (reminiscent of the reduced instruction set ideals).
 
@@ -50,7 +50,7 @@ Furthermore, as opposed to the assumptions used by the GNU R compiler (see \ref{
 
 RIR is at present slower than GNU R. This is caused by several factors. First, RIR falls back to the AST interpreter more often than GNU R. Second, RIR allocates more memory than GNU R. For example, GNU R does not create promises out of constant arguments passed to a closure. RIR, on the other hand, creates promises from each argument. Moreover, the GNU R bytecode interpreter loop is very optimized and efficient, as opposed to RIR's.
 
-Some examples of RIR instructions are listed in talbe \ref{tab:rir-instr}.
+Some examples of RIR instructions are listed in table \ref{tab:rir-instr}.
 
 \begin{longtable}[c]{@{}ll@{}}
 \caption{Description of some RIR bytecodes\label{tab:rir-instr}} \tabularnewline

@@ -41,7 +41,7 @@ spectralnorm & Computing eigenvalue using power method \tabularnewline
 
 The benchmarks were run on a machine with \emph{Intel(R) Core(TM) i5-6500} (4 cores) and 8~GB of memory. For every benchmark, three experiments were measured: GNU R interpreted code (JIT set to 0), GNU R byte-compiled code (JIT set to 2 and optimize to 2) and RIR compiled code (JIT set to 2).
 
-Each experiment took place in a fresh R session. The benchmark code was sourced, then it was executed 12 times, and the last 8 measured times were logged. This ensured that the machine was warmed up properly Any compile time overheads were disregarded. The same measurments were performed for every set of added features.
+Each experiment took place in a fresh R session. The benchmark code was sourced, then it was executed 12 times, and the last 8 measured times were logged. This ensured that the machine was warmed up properly Any compile time overheads were disregarded. The same measurements were performed for every set of added features.
 
 Figure \ref{fig:overall} shows the summary of how much the difference between RIR and GNU R was lowered for each benchmark, as well as an overall average (smaller values are better).
 
@@ -91,7 +91,7 @@ Figure \ref{fig:history} captures the running times of each benchmark over the c
   \tmpframe{\includegraphics[width=\linewidth]{images/speedup_history}}
 \end{figure}
 
-In the figure, the light blue color represents performance of the GNU R bytecode. As all measurments were carried out on the same version of GNU R (namely 3.3.2) the times are identical.
+In the figure, the light blue color represents performance of the GNU R bytecode. As all measurements were carried out on the same version of GNU R (namely 3.3.2) the times are identical.
 
 RIR performance for some benchmarks was comparable to GNU R even before the first modifications, with some (notably \emph{pidigits}) outperforming GNU R.
 
@@ -117,7 +117,7 @@ Another interesting result is the \emph{knucleotide brute} benchmark. Here it se
   \tmpframe{\includegraphics[width=\linewidth]{images/knucleotide-brute}}
 \end{figure}
 
-The average speedup versus GNU R over the measured revisions is captured in figure \ref{fig:avg-speedup-history}. The result was obtained by averaging the measurments for each benchmark and then taking the average of those values. From the changes, the most debatable is threading. It seems that this feature only starts to pay off for larger and longer programs.
+The average speedup versus GNU R over the measured revisions is captured in figure \ref{fig:avg-speedup-history}. The result was obtained by averaging the measurements for each benchmark and then taking the average of those values. From the changes, the most debatable is threading. It seems that this feature only starts to pay off for larger and longer programs.
 
 \begin{figure}[htbp]
   \caption{\label{fig:avg-speedup-history}History of average speedup vs. GNU R}

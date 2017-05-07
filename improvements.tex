@@ -64,7 +64,7 @@ When adding a new bytecode instruction, several steps have to be performed. Firs
 
 These are \emph{imm} (the number of immediate arguments that the instruction expects -- immediates are inserted directly into the code stream), \emph{pop} and \emph{push} (the number of elements that the instruction removes from and adds to the stack, respectively) and \emph{pure} (a flag that says if the instruction has side-effects, e.g., it can force a promise -- purity is good to know for optimization purposes).
 
-The format is displayed in listing \ref{lst:def-instr}. \cinline/DEF_INSTR/ is a C preprocessor macro that needs to be defined each time this header file is included, and can be used to get information about the instructions. For instance, a method that returns the numer of immediates is shown in listing \ref{lst:imm}.
+The format is displayed in listing \ref{lst:def-instr}. \cinline/DEF_INSTR/ is a C preprocessor macro that needs to be defined each time this header file is included, and can be used to get information about the instructions. For instance, a method that returns the number of immediates is shown in listing \ref{lst:imm}.
 
 \begin{listing}[htbp]
   \caption{\label{lst:def-instr}Adding new opcode to RIR bytecode}
@@ -303,7 +303,7 @@ INSTRUCTION(colon_) {
 
 \subsection{Superassignment}
 
-Superassignment operator \rinline/`<<-`/ differs from normal assignment in that it works in an enclosing evnironment. Thus, the local environment where superassignment occurs is skipped during the binding lookup. For simple assignment of the form \rinline/x <<- y/, that is all there really is.
+Superassignment operator \rinline/`<<-`/ differs from normal assignment in that it works in an enclosing environment. Thus, the local environment where superassignment occurs is skipped during the binding lookup. For simple assignment of the form \rinline/x <<- y/, that is all there really is.
 
 The semantics of a complex subset assignment are a bit more complicated, as is shown in listing \ref{lst:subassign} (taken from \autocite{subset}), because it is not a matter of simply creating or changing a binding, but a part of a binding's object has to be extracted and modified first. This model applies recursively for still more complex assignments.
 
@@ -321,13 +321,13 @@ rm(`*tmp*`)
 
 The target object is looked up and stored into a variable \rinline/`*tmp*`/ (it is not recommended to use this name for anything in user code, since, as a side-effect, this will overwrite and then delete it). Then, a function name is constructed from the left-hand side call expression by appending an assignment arrow. The resulting name must refer to a function that takes the same arguments as the original one as well as an additional value argument. This function is called, the right-hand side expression is passed as the value, and its result is stored to the target. Then the temporary binding is removed.
 
-For superassignment the same principles apply, however, the target binding (and only the target binding) is looked up in an enclosing evnironment of the expression.
+For superassignment the same principles apply, however, the target binding (and only the target binding) is looked up in an enclosing environment of the expression.
 
 Two new bytecode instructions were added for handling the superassignment semantics of looking up bindings. The first is for loading a symbol. It takes one immediate argument, an index into the constant pool where it finds the symbol to look up. It does not pop anything from the stack but pushes one object, the value of the binding. The second is symmetrical to the first, it takes an immediate constant pool index, pops one object, does not push anything. Both are impure: the load may evaluate a promise, and the store modifies non-local bindings (unlike normal \cinline/stvar_/ that writes only into the local environment and hence is pure).
 
 These new bytecodes were added to the compiler at a point where it inlines normal assignment and subset assignment.
 
-In the inctructions themselves, the environment for looking up bindings gets replaced with its enclosing environment. This is shown in listing \ref{lst:stvar2}, where the call to R internal \cinline/setVar/ function takes as the last argument the enclosing environment of the current one. The symbol is read from the constant pool at the index determined by the immediate. The value to store is taken from the stack.
+In the instructions themselves, the environment for looking up bindings gets replaced with its enclosing environment. This is shown in listing \ref{lst:stvar2}, where the call to R internal \cinline/setVar/ function takes as the last argument the enclosing environment of the current one. The symbol is read from the constant pool at the index determined by the immediate. The value to store is taken from the stack.
 
 One additional detail comes up: how the program counter (PC) is manipulated. With every instruction, the dispatcher reads its opcode from the current position of the PC and moves the PC to the next position (opcodes take up a single byte). If the instruction has any immediates, it is up to the instruction code to manipulate the PC accordingly. This is done by the \cinline/advanceImmediate/ macro.
 
@@ -527,7 +527,7 @@ if (fun == symbol::Break) {
 
 A~few small improvements were made to the optimization pass that RIR runs on the bytecode after it is compiled. The recursive compiler and possibly other transformations applied to the bytecode sometimes produce sequences of BC instructions where some are redundant or can be replaced. Examples of this include loading a variable twice or pushing to the stack and immediately popping.
 
-The modified compilation of loops described previously produces for one some \cinline/nop_/ instructions. Moreover, the pair of instructions \cinline/pick_ 1; pick_ 1/ occured quite often. The \cinline/pick_/ instruction removes the stack element at the index given by its immediate and puts it to the top of stack. If the code picks the element just under the top of stack twice in a row, the effect is as if nothing happened. Therefore, the code in listing \ref{lst:cleanup} was added to the BC cleanup pass to fix these.
+The modified compilation of loops described previously produces for one some \cinline/nop_/ instructions. Moreover, the pair of instructions \cinline/pick_ 1; pick_ 1/ occurred quite often. The \cinline/pick_/ instruction removes the stack element at the index given by its immediate and puts it to the top of stack. If the code picks the element just under the top of stack twice in a row, the effect is as if nothing happened. Therefore, the code in listing \ref{lst:cleanup} was added to the BC cleanup pass to fix these.
 
 The two methods are located in an analysis class that implements the visitor pattern over instructions. Thus adding new cleanup code means simply overriding the particular bytecode instruction.
 
@@ -575,7 +575,7 @@ END:
   \end{ccode}
 \end{listing}
 
-However, if the condition and the body are swapped, half of the jumps can be saved. The body is compiled first, then follows the condition and a conditional jump back to the body. Additionaly, a single unconditional jump is inserted before the body. Listing \ref{lst:body-cond} demonstrates this.
+However, if the condition and the body are swapped, half of the jumps can be saved. The body is compiled first, then follows the condition and a conditional jump back to the body. Additionally, a single unconditional jump is inserted before the body. Listing \ref{lst:body-cond} demonstrates this.
 
 \begin{listing}[htbp]
   \caption{\label{lst:body-cond}Refactored \rinline/while/ loop bytecode}
