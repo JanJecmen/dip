@@ -163,7 +163,7 @@ Name & \emph{imm} & \emph{pop} & \emph{push} & \emph{pure} \tabularnewline
 
 \subsection{Relational operators}
 
-Originally, RIR only had \rinline/`<`/ out of the six usual relational operators. The rest, \rinline/`>`/, \rinline/`<=`/, \rinline/`>=`/, \rinline/`==`/ and \rinline/`!=`/ were being compiled as calls to the builtin C routines, but were added as new .
+Originally, RIR only had \rinline/`<`/ out of the six usual relational operators. The rest, \rinline/`>`/, \rinline/`<=`/, \rinline/`>=`/, \rinline/`==`/ and \rinline/`!=`/ were being compiled as calls to the builtin C routines, but were newly added.
 
 All these instructions behave in the same way as arithmetic binary operators do. They take no immediate arguments, and instead expect their operands to be left for them at the top of the stack. They pop two values off the stack, compute the respective operation, and push one result back. They are impure, since their arguments may be promises in which case they would have to force them.\footnote{Because R has \rinline/eval/, any arbitrary code may be run when forcing a promise.}
 
@@ -231,7 +231,7 @@ If the fast paths fail, the instruction falls back to the standard routine that 
 
 \subsection{Unary operators}
 
-Unary operators are in principle the same as binary. If their operand has one element and appropriate type, a fast path can be added. The logical negation has a fast path for logical scalars in addition to numeric.
+Unary operators are in principle the same as binary. If their operand has one element and appropriate type, a fast path can be taken. The logical negation has a fast path for logical scalars in addition to numeric.
 
 R has two arithmetic unary operators, \rinline/`+`/ and \rinline/`-`/, and logical negation \rinline/`!`/. These are all rather straightforward, they do not have immediates, pop one argument and push one result back.
 
@@ -337,7 +337,6 @@ One additional detail comes up: how the program counter (PC) is manipulated. Wit
 INSTRUCTION(stvar2_) {
     SEXP sym = readConst(ctx, readImmediate());
     advanceImmediate();
-    SLOWASSERT(TYPEOF(sym) == SYMSXP);  /* for debugging only */
     SEXP val = ostack_pop(ctx);
     INCREMENT_NAMED(val);
     setVar(sym, val, ENCLOS(env));

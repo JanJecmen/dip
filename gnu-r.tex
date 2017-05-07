@@ -397,7 +397,7 @@ list(.Code,
   \end{rcode}
 \end{listing}
 
-The virtual machine that executes R bytecode uses a stack oriented architecture. This means that a stack is used by the instructions at runtime to get their arguments and store their results. For example, the instruction that performs addition, expects its two operands at the top of the stack. When it is executed, it removes these two objects from the stack, adds them together, and puts the resulting object back on the top of the stack.
+The virtual machine that executes R bytecode uses a stack oriented architecture. This means that a stack is used by the instructions at runtime to get their arguments and store their results. For example, the instruction that performs addition expects its two operands at the top of the stack. When it is executed it removes these two objects from the stack, adds them together and puts the resulting object back on the top of the stack.
 
 The VM is implemented as a C routine that gets a bytecode object and an environment as arguments (similar to the AST interpreter). It verifies the BC version and then enters a loop that looks at the instruction stream in the BC object and dispatches to code that implements the given instruction. The loop is very carefully optimized by various techniques, such as using C preprocessor macros and threaded code. This will be discussed later in chapter \ref{improvements}.
 
@@ -434,9 +434,9 @@ Instruction & Description \tabularnewline
 \bottomrule
 \end{longtable}
 
-The compiler itself has in its heart the recursive function \rinline/cmp/ that visits the AST of a given expression. It passes along a code buffer object (that contains the instruction stream and the constant pool) and a context object. When generating code, it writes into the code buffer, and uses the context to guide the compilation (it carries along infromation such as whether the expression should be followed by a return, if the result is ignored or not or if the expression is in a loop).
+The compiler itself has in its heart the recursive function \rinline/cmp/ that visits the AST of a given expression. It passes along a code buffer object (that contains the instruction stream and the constant pool) and a context object. When generating code, it writes into the code buffer, and uses the context to guide the compilation (it carries along information such as whether the expression should be followed by a return, if the result is ignored or not or if the expression is in a loop).
 
-The expressions that are not self-evaluating are funcion calls, variable references, bytecode objects and promises. The rest is treated as being a constant. Bytecode objects and promises should not appear as literals in code, so they cause a compilation error if encountered.
+The expressions that are not self-evaluating are function calls, variable references, bytecode objects and promises. The rest is treated as being a constant. Bytecode objects and promises should not appear as literals in code, so they cause a compilation error if encountered.
 
 Constant expressions are compiled by inserting the object into constant pool and generating a load instruction such as \rinline/LDCONST.OP/ (that takes as an argument the index into the constant pool of the object).
 
@@ -452,9 +452,9 @@ Currently, constant folding is performed (depending on compiler options) on ``sm
 
 When dealing with a language as dynamic as R, one needs to be very careful to distinguish compile time from execution time, and in particular to realize that between the two there is a window during which the state of the program can change.
 
-It was explained earlier (see listing \ref{lst:arith-plus}) that everything that happens in R is a function call, even constructs that have a special syntactic meaning, like \rinline/if/, \rinline/while/, \rinline/break/ etc.
+It was explained earlier (see listing \ref{lst:funcall}) that everything that happens in R is a function call, even constructs that have a special syntactic meaning, like \rinline/if/, \rinline/while/, \rinline/break/ etc.
 
-Furthermore, R uses lexical scoping. When the user starts an interactive session, they work in the global environment, which is the lowest environment in the hierarchy of environments known as the search path. The base environment (where all the default R bindings are defined) as well as any loaded packages are its ancestors in the search path. It is therefore possible to shadow the default bindings by creating new bindings that are found earlier on the search path.
+Furthermore, R uses lexical scoping. When a user starts an interactive session, they work in the global environment, which is the lowest environment in the hierarchy of environments known as the search path. The base environment (where all the default R bindings are defined) as well as any loaded packages are its ancestors in the search path. It is therefore possible to shadow the default bindings by creating new bindings that are found earlier on the search path.
 
 Taking all this into consideration, to be conservative the compiler would have to compile everything as a function call, and then, at runtime, look up the current value of the callee binding and perform the call. Unfortunately, this almost completely negates the benefits of having a compiler at all, because the call is exactly what the AST interpreter does.
 
