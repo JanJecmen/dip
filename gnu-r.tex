@@ -10,9 +10,7 @@ R comes with a software environment built around it, which allows for easily man
 
 This section was written while consulting \autocite{hadley, design, inferno, rint, rlang}.
 
-R is, as far as programming languages go, very interesting and has some quite unusual semantic features. It is an interpreted language, and is dynamically typed and garbage collected. It supports multiple programming paradigms: users can use procedural imperative style, but at the same time R provides an object system (more than one, in fact) for object oriented programming, and is heavily influenced by functional programming languages, notably Scheme (a~dialect of Lisp).
-
-% zjistil bych kolik presne tech object systemu ma a napsal to tam, bez vykricniku
+R is, as far as programming languages go, very interesting and has some quite unusual semantic features. It is an interpreted language, and is dynamically typed and garbage collected. It supports multiple programming paradigms: users can use procedural imperative style, but at the same time R provides an object system for object oriented programming, and is heavily influenced by functional programming languages, notably Scheme (a~dialect of Lisp).\footnote{In fact, R has multiple OO systems: 3 builtin and other provided as packages, such as R.oo (\url{https://cran.r-project.org/web/packages/R.oo/}) or R6 (\url{https://cran.r-project.org/web/packages/R6/}).}
 
 Functions are, in accordance with functional languages, first-class values, so they can be passed around as call arguments, returned as results of function calls and created dynamically at runtime. R uses lexical scoping (which it adopted from Scheme) and R functions are closures that capture their enclosing environment at creation time. Arguments are passed by value (although a variant of reference counting is implemented, so that deep copies are only created as needed, e.g., when an object is modified).
 
@@ -29,20 +27,24 @@ Functions are by design anonymous, i.e., they are not named when created. This i
   \end{rcode}
 \end{listing}
 
-Interestingly, everything that happens in R is in fact a function call. This goes as far as arithmetic operators being just syntactic sugar for function calls, as can be seen in listing \ref{lst:arith-plus}.\footnote{As a side note, backticks are used in R to denote symbols (i.e. names). Because some symbols have special syntactic meaning (like the \rinline/`+`/ being an infix binary operator), they can cause a syntax error if they appear unquoted in a place where the parser does not expect them.} In this spirit, even assigning into a variable, evaluating a block of code inside curly brackets or grouping expressions with parentheses translate to calling the respective functions. As such, everything can be redefined, as in listing \ref{lst:paren-redef}.
-
-% mozna bych k tem aritmetickejm pridal ze i control flow sou funkce - to mi prijde vic sokujici nez ze + je funkce
+Interestingly, everything that happens in R is in fact a function call. This goes as far as all control flow statements and arithmetic operators being just syntactic sugar for function calls, as can be seen in listing \ref{lst:funcall}.\footnote{As a side note, backticks are used in R to denote symbols (i.e. names). Because some symbols have special syntactic meaning (like the \rinline/`+`/ being an infix binary operator), they can cause a syntax error if they appear unquoted in a place where the parser does not expect them.} In this spirit, even assigning into a variable, evaluating a block of code inside curly brackets or grouping expressions with parentheses translate to calling the respective functions. As such, everything can be redefined, as in listing \ref{lst:paren-redef}.
 
 \begin{listing}[htbp]
-  \caption{\label{lst:arith-plus}Arithmetic operators are function calls in R}
+  \caption{\label{lst:funcall}All that happens in R is function call}
   \begin{rcode}
-> typeof(`+`)
-[1] "builtin"
+> is.function(`while`)
+[1] TRUE
+> is.function(`break`)
+[1] TRUE
+> is.function(`if`)
+[1] TRUE
+> `if`(TRUE, 1, 0)
+[1] 1
+> `if`(FALSE, 1, 0)
+[1] 0
 > `+`
 function (e1, e2)  .Primitive("+")
 > `+`(1, 2)
-[1] 3
-> 1 + 2
 [1] 3
   \end{rcode}
 \end{listing}
@@ -74,9 +76,7 @@ Hello
   \end{rcode}
 \end{listing}
 
-These features highlight the functional approach of R by minimizing side-effects. However, R supports assignment which enables programmers to change a function's local state by modifying its bindings and thus the imperative programming style.\footnote{An interesting quirk is R's left to right assignment: the code \rinline/1 -> x/ assigns to \rinline/x/ and is equivalent to \rinline/x <- 1/. It has nothing to do with C++ structure dereference, since R does not have references.} Also, the superassignment operator \rinline/`<<-`/ makes it possible to change non-local bindings (as shown in listing \ref{lst:superassign}) and thus brings the side-effects back into play.
-
-% nejsem si uplne jistej jak myslis ze promises minimizujou sideeffecty... Mi prijde spis naopak;-DD. Vynechal bych to o ty C++ dereferencci, nechal bych jen the -> jako perlicku
+R supports assignment which enables programmers to change a function's local state by modifying its bindings and thus the imperative programming style.\footnote{An interesting quirk is R's left to right assignment: the code \rinline/1 -> x/ assigns to \rinline/x/ and is equivalent to \rinline/x <- 1/.} Also, the superassignment operator \rinline/`<<-`/ brings into play non-local side-effects (as shown in listing \ref{lst:superassign}).
 
 \begin{listing}[htbp]
   \caption{\label{lst:superassign}Superassignment}
@@ -96,9 +96,7 @@ These features highlight the functional approach of R by minimizing side-effects
   \end{rcode}
 \end{listing}
 
-The basic data type in R is an atomic vector. Vectors are collections of homogeneous values (a given vector can only hold objects of one particular type), that preserve the order of their elements. R also provides a list type which is heterogeneous. Higher-dimensional types such as matrices and data frames, as well as objects, are built from vectors and lists under the hood. Vectors can be created in R by calling the function \rinline/c/.\footnote{The name stands for \emph{combine}.}
-
-% ... as well as objects are internally built on vectors and lists. 
+The basic data type in R is an atomic vector. Vectors are collections of homogeneous values (a given vector can only hold objects of one particular type), that preserve the order of their elements. R also provides a list type which is heterogeneous. Higher-dimensional types such as matrices and data frames, as well as objects, are internally built on vectors and lists. Vectors can be created in R by calling the function \rinline/c/.\footnote{The name stands for \emph{combine}.}
 
 Atomic vectors can have one of these six types: logical, integer, double, character, complex and raw. Since R targets data analysis, a special ``not~available'' value \rinline/NA/ is provided for these. Because all values in a vector must be of the same type, R performs coercion when an attempt is made to combine vectors of different types. In listing \ref{lst:coercion}, combining a numeric vector with a character vector results in a character vector, and summing a logical vector coerces to integers (\rinline/TRUE/ becoming \rinline/1/ and \rinline/FALSE/ becoming \rinline/0/).
 
@@ -196,9 +194,7 @@ Error in f() : the ... list does not contain 2 elements
   \end{rcode}
 \end{listing}
 
-As was already mentioned, R has not one but three different object systems. The simplest is called S3 and it uses a class attribute to implement ad hoc polymorphism (also known as function or operator overloading). It does not have formal classes, but instead uses a special function called a~generic function that decides what to call based on the value of the class attribute. A~typical example is printing, where the \rinline/print/ function is generic, its body consists of a call to a dispatcher \rinline/UseMethod("print")/. Specialized versions for different types can be defined, such as \rinline/print.data.frame/ for data frames, or, given an object with class set to \rinline/"foo"/, \rinline/print.foo/ (as is shown in listing \ref{lst:s3}).
-
-% we haven't mentioned it - furt je tam ten vykricnik + myslim, ze tech object systemu ma vic, dal bych mozna but three widely used ... 
+As was already mentioned, R has multiple object systems. The simplest is called S3 and it uses a class attribute to implement ad hoc polymorphism (also known as function or operator overloading). It does not have formal classes, but instead uses a special function called a~generic function that decides what to call based on the value of the class attribute. A~typical example is printing, where the \rinline/print/ function is generic, its body consists of a call to a dispatcher \rinline/UseMethod("print")/. Specialized versions for different types can be defined, such as \rinline/print.data.frame/ for data frames, or, given an object with class set to \rinline/"foo"/, \rinline/print.foo/ (as is shown in listing \ref{lst:s3}).
 
 \begin{listing}[htbp]
   \caption{\label{lst:s3}S3 object system}
@@ -291,9 +287,7 @@ $sq
 
 \section{AST interpreter}
 
-In its core R uses a classic architecture for an interpreted language. After initialization, the user enters R's read-eval-print loop (REPL), that lets them type in expressions and have R evaluate them. First, a reader, or parser, waits for the user input and reads it line by line. If, at the end of line, it has read a syntactically complete expression, it passes it to an evaluator (otherwise it waits for more input). After the evaluator returns the evaluated expression, a printer is invoked that displays the result (with some exceptions, such as assignment that sets its result to be invisible). Then the reader is invoked again and the process repeats.
-
-% zminil bych, ze to jesstli bude vysledek zobrazenej nebo ne je programmable a ne hardcoded...
+In its core R uses a classic architecture for an interpreted language. After initialization, the user enters R's read-eval-print loop (REPL), that lets them type in expressions and have R evaluate them. First, a reader, or parser, waits for the user input and reads it line by line. If, at the end of line, it has read a syntactically complete expression, it passes it to an evaluator (otherwise it waits for more input). After the evaluator returns the evaluated expression, a printer is invoked that displays the result.\footnote{However, results can also be hidden, e.g., by the \rinline/invisible/ function.} Then the reader is invoked again and the process repeats.
 
 Every object in R is internally represented by a C structure called \cinline/SEXPREC/ (actually, R passes the objects around as pointers to this structure, which are called \cinline/SEXP/).\footnote{The name refers to S-expressions, or symbolic expressions, as known from Lisp, although the classical linked lists built from dotted pairs are mostly used internally, and vectors are implemented as C arrays for efficiency reasons.} This structure contains a header with metadata about the object, such as its type, reference counter or infromation for garbage collector, and then a union of other structures that represent different types of R internal objects. Some of these types are listed it table \ref{tab:sexp-types}.
 
@@ -354,9 +348,7 @@ If the eval function sees a symbol node, a lookup for its binding is perfomed in
 
 One other prominent type of nodes is \cinline/LANGSXP/. R has internally three types of functions, called \emph{special}, \emph{builtin} and \emph{closures} (or user-defined functions). These have different behavior when they are applied, and the eval function handles that.
 
-Special funcions are the core language constructs, such as control flow (conditionals and loops). They take their arguments unevaluated in a list and evaluate them as needed while running. This is necessary for example for the \rinline/if/ statement, because, since R has side-effects, only one of the conditional branches must be evaluated to preserve the correct semantics.
-
-% mozna spis nez unevaluated (protoze to by mohly bejt i promises) bych rekl ze take their argument as ASTs...
+Special funcions are the core language constructs, such as control flow (conditionals and loops). They take their arguments as ASTs in a list and evaluate them as needed while running. This is necessary for example for the \rinline/if/ statement, because, since R has side-effects, only one of the conditional branches must be evaluated to preserve the correct semantics.
 
 Builtins, on the other hand, are known to evaluate all their arguments, so it is not necessary to create promises from their arguments. Instead, a list of evaluated arguments is created and passed to the builtin function. Examples of builtin functions are arithmetic operators or the colon operator for generating integer sequences.
 
