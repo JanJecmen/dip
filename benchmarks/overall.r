@@ -67,8 +67,8 @@ plot +
   scale_fill_brewer(palette="Paired") +
   scale_x_discrete(limits = ordering) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
-  xlab("Benchmark") +
+  theme(axis.title.x=element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
   ylab("Slowdown vs. GNU R") +
   theme(text = element_text(family="DejaVu Sans"))
 
