@@ -2,7 +2,7 @@
 
 RIR is an alternative compiler for the R language.\footnote{Homepage: \url{https://github.com/reactorlabs/rir}} It comes with its own internal representation, an interpreter for its bytecode and an abstract interpretation framework which provides a way to easily implement static analyses on top of the RIR bytecode.
 
-RIR acts as a drop-in replacement for the GNU R bytecode compiler. It requires a patched version of GNU R that makes some slight adjustments that allow the standard GNU R expression evaluator function to interface with the RIR bytecode compiler and interpreter. RIR is written in C and C++ and is compiled as a shared library that can be dynamically loaded by R.
+RIR acts as a drop-in replacement for the GNU R bytecode compiler. It requires a patched version of GNU R that makes some slight adjustments that allow the standard GNU R expression evaluator function to interface with the RIR bytecode compiler and interpreter. RIR is written in C (the interpreter) and C++ (the compiler and analysis framework) and is compiled as a shared library that can be dynamically loaded by R.
 
 Listing \ref{lst:rir} shows how to manually load RIR (although a script \emph{tools/R} is provided that does this autmatically and turns on JIT, too).
 
@@ -48,14 +48,36 @@ In general, where GNU R uses complex instructions that have to cover a lot of wo
 
 Furthermore, as opposed to the assumptions used by the GNU R compiler (see \ref{assumptions}), RIR uses guard instructions that check at runtime whether the assumption holds or not (i.e. whether the inlined function is still the same as it was at compile time).
 
-% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % 
+RIR is at present slower than GNU R. This is caused by several factors. First, RIR falls back to the AST interpreter more often than GNU R. Second, RIR allocates more memory than GNU R. For example, GNU R does not create promises out of constant arguments passed to a closure. RIR, on the other hand, creates promises from each argument. Moreover, the GNU R bytecode interpreter loop is very optimized and efficient, as opposed to RIR's.
 
-\section{Why is RIR slow}
+Some examples of RIR instructions are listed in talbe \ref{tab:rir-instr}.
 
-RIR is at present slower than GNU R. This is caused by several factors.
-
-First, RIR falls back to the AST interpreter more often than GNU R.
-
-Second, RIR allocates more memory than GNU R. For example, GNU R does not create promises out of constant arguments passed to a closure. RIR, on the other hand, creates promises from each argument.
-
-Moreover, the GNU R bytecode interpreter is very optimized and efficient, as opposed to RIR.
+\begin{longtable}[c]{@{}ll@{}}
+\caption{Description of some RIR bytecodes\label{tab:rir-instr}} \tabularnewline
+\toprule
+Instruction & Description \tabularnewline
+\midrule
+\endfirsthead
+\toprule
+Instruction & Description \tabularnewline
+\midrule
+\endhead
+\cinline/push_/ & Push on top of stack \tabularnewline
+\cinline/pop_/ & Pop off the stack \tabularnewline
+\cinline/ldvar_/ & Look up binding \tabularnewline
+\cinline/stvar_/ & Update binding \tabularnewline
+\cinline/close_/ & Create closure \tabularnewline
+\cinline/ret_/ & Standard return \tabularnewline
+\cinline/return_/ & Non-local return \tabularnewline
+\cinline/asbool_/ & Convert top of stack to \rinline/TRUE/ or \rinline/FALSE/ \tabularnewline
+\cinline/brtrue_/ & Jump based on top of stack \tabularnewline
+\cinline/brobj_/ & Jump if top of stack is object \tabularnewline
+\cinline/br_/ & Jump unconditionally \tabularnewline
+\cinline/dup_/ & Duplicate top of stack \tabularnewline
+\cinline/dup2_/ & Duplicate two top elements \tabularnewline
+\cinline/add_/ & Arithmetic addition \tabularnewline
+\cinline/guard_fun_/ & Check function is same as at compile time \tabularnewline
+\cinline/extract1_/ & Get an element of vector \tabularnewline
+\cinline/inc_/ & Increment integer on top of stack\tabularnewline
+\bottomrule
+\end{longtable}

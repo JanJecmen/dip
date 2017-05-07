@@ -2,24 +2,57 @@
 
 This chapter discusses how the changes implemented in chapter \ref{improvements} impact the performance of RIR.
 
-For evaluation, the Shootout benchmarks were used (see \autocite{shootout} and \autocite{fastr}). These are small programs that focus on different parts of R, such as recursive calls, loops, vector arithmetic, string manipulation etc.
+For evaluation, the Shootout benchmarks were used (see \autocite{shootout} and \autocite{fastr}). These are small programs that focus on different parts of R, such as recursive calls, loops, vector arithmetic, string manipulation etc. The details are in table \ref{tab:shootout}, taken from \autocite{fastr}.
 
-\todo[table about shootout?]
+\begin{longtable}[c]{@{}ll@{}}
+\caption{The Shootout benchmark suite\label{tab:shootout}} \tabularnewline
+\toprule
+Benchmark & Description \tabularnewline
+\midrule
+\endfirsthead
+\toprule
+Benchmark & Description \tabularnewline
+\midrule
+\endhead
+binarytrees & Allocates and traverses binary trees \tabularnewline
+& GC benchmark, recursive calls, recursive lists \tabularnewline
+fannkuchred & Solves a combinatorial problem \tabularnewline
+& Loops, indexing short vectors \tabularnewline
+fasta & Generates DNA sequence by copying, rand. selection \tabularnewline
+& String operations, scalar arithmetic \tabularnewline
+fastaredux & Solves same problem as fasta \tabularnewline
+& Adds more loops, vector indexing and arithmetic \tabularnewline
+knucleotide & Finding patterns in gene sequences \tabularnewline
+& Uses environment as a hashmap, string operations \tabularnewline
+mandelbrot & Calculates a Mandelbrot set (fractal image) \tabularnewline
+& Vector arithmetic on complex numbers \tabularnewline
+nbody & Solves the N-body problem (simulation) \tabularnewline
+& Arithmetic, Math with short vectors \tabularnewline
+pidigits & Calculate digits of pi using spigot algorithm \tabularnewline
+& Arbitrary precision arithmetic in R (diverse code) \tabularnewline
+regexdna & Matching, replacing regex-specified gene sequences \tabularnewline
+& Regular expressions (falls back to regex library) \tabularnewline
+reversecompl & Computing reverse-complements for gene sequence \tabularnewline
+& String vector indexing using string names \tabularnewline
+spectralnorm & Computing eigenvalue using power method \tabularnewline
+& Loops, function calls, scalar arithmetic \tabularnewline
+\bottomrule
+\end{longtable}
 
-The benchmarks were run on a machine with Intel(R) Core(TM) i5-6500 (4 cores) and 8~GB of RAM. For every benchmark, three experiments were measured: GNU R interpreted code (JIT set to 0), GNU R byte-compiled code (JIT set to 2 and optimize to 2) and RIR compiled code (JIT set to 2).
+The benchmarks were run on a machine with \emph{Intel(R) Core(TM) i5-6500} (4 cores) and 8~GB of memory. For every benchmark, three experiments were measured: GNU R interpreted code (JIT set to 0), GNU R byte-compiled code (JIT set to 2 and optimize to 2) and RIR compiled code (JIT set to 2).
 
-Each experiment took place in a fresh R session. The benchmark code was sourced, then it was executed 12 times, and the last 8 measured times were logged. This caused the machine to warm up properly and also disregarded any compile time overheads.
+Each experiment took place in a fresh R session. The benchmark code was sourced, then it was executed 12 times, and the last 8 measured times were logged. This ensures that the machine is warmed up properly and also disregards any compile time overheads.
 
 The same measurments were performed for every set of added features. The revisions with descriptions that were used to monitor the progress are listed in table \ref{tab:git-rev}.
 
 \begin{longtable}[c]{@{}ll@{}}
 \caption{Git revisions used in the benchmarks\label{tab:git-rev}} \tabularnewline
 \toprule
-Hash & Description \tabularnewline
+Hash & Features \tabularnewline
 \midrule
 \endfirsthead
 \toprule
-Hash & Description \tabularnewline
+Hash & Features \tabularnewline
 \midrule
 \endhead
 e1091b9 & State before the first changes \tabularnewline
@@ -32,7 +65,7 @@ ff73d75 & Use indirect threading \tabularnewline
 \bottomrule
 \end{longtable}
 
-Figure \ref{fig:overall} shows the summary of how much the difference between RIR and GNU R was lowered for all benchmarks, as well as an overall average. Smaller values are better.
+Figure \ref{fig:overall} shows the summary of how much the difference between RIR and GNU R was lowered for each benchmark, as well as an overall average. Smaller values are better.
 
 \begin{figure}[htbp]
   \caption{\label{fig:overall}Overview of the slowdown vs. GNU R}
