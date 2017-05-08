@@ -18,6 +18,15 @@ RIR is still under active development and further work is needed.
 
 The abstract interpretation framework of RIR is one direction for future efforts. It can be improved and extended on one hand, and on the other be used to implement new analysis and optimization passes for RIR bytecode.
 
-In the early stages of this thesis, unsuccessful experiments were carried out with a tool for superoptimizations called Stoke.\footnote{See \url{https://github.com/StanfordPL/stoke}} New ways of applying it to RIR could be explored.
+In the early stages of this thesis, unsuccessful experiments were carried out with a tool called STOKE.\footnote{See \url{https://github.com/StanfordPL/stoke}}
 
-% o tomhle bych klidne napsat vic - tak 2-4 odstavce delsi to uplne v pohode snese
+STOKE is a stochastic superoptimizer for the x86-64 architecture developed at Stanford University. It tries to 
+
+Unfortunately, New ways of applying it to RIR could be explored.
+
+
+STOKE uses random search to explore the extremely high-dimensional space of all possible program transformations. Although any one random transformation is unlikely to produce a code sequence that is desirable, the repeated application of millions of transformations is sufficient to produce novel and non-obvious code sequences. STOKE can be used in many different scenarios, such as optimizing code for performance or size, synthesizing an implementation from scratch or to trade accuracy of floating point computations for performance. As a superoptimizer, STOKE has been shown to outperform the code produced by general-purpose and domain-specific compilers, and in some cases expert hand-written code.
+
+In addition to searching over programs, STOKE contains verification infrastructure to show the equivalence between x86-64 programs. STOKE can consider test-cases, perform bounded verification all the way to fully formal verification that shows the equivalence for all possible inputs.
+
+STOKE has appeared in a number of publications. For a thorough introduction to the design of STOKE, see:

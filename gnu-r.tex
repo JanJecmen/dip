@@ -456,9 +456,7 @@ When dealing with a language as dynamic as R, one needs to be very careful to di
 
 It was explained earlier (see listing \ref{lst:funcall}) that everything that happens in R is a function call, even constructs that have a special syntactic meaning, like \rinline/if/, \rinline/while/, \rinline/break/ etc.
 
-Furthermore, R uses lexical scoping. When a user starts an interactive session, they work in the global environment, which is the lowest environment in the hierarchy of environments known as the search path. The base environment (where all the default R bindings are defined) as well as any loaded packages are its ancestors in the search path. It is therefore possible to shadow the default bindings by creating new bindings that are found earlier on the search path.
-
-% tady z ty formuace neni jasny jestli base patri taky do searc path - pokud jo, tak default neni the lowest;-D
+Furthermore, R uses lexical scoping. When a user starts an interactive session, they work in the global environment, which is the first environment in the hierarchy of environments known as the search path. The base environment (where all the default R bindings are defined) as well as any loaded packages are its ancestors in the search path. It is therefore possible to shadow the default bindings by creating new bindings in the global environment.\footnote{The base is in fact the last environment in the search path. Its parent environment is a special empty environment.}
 
 Taking all this into consideration, to be conservative the compiler would have to compile everything as a function call, and then, at runtime, look up the current value of the callee binding and perform the call. Unfortunately, this almost completely negates the benefits of having a compiler at all, because the call is exactly what the AST interpreter does.
 
@@ -502,7 +500,7 @@ This section is based on  \autocite{design, hadley}.
 
 Firstly, R is not the fastest language out there. Of course, being an intepreted language, one cannot expect the performance of lagnuages like C that are compiled to native machine code. This is because during runtime, there is the inherent overhead of managing the virtual machine that executes a given program. For the AST interpreter, it entails walking the tree again with every evaluation of an expression. For the BC compiler and interpreter, there is first the compilation itself (which only happens once), but then dispatching of the instructions needs to be done in the interpreter loop.
 
-% tohle uplne nesouvisis tim ze R is not the fastest lang out there - naopak tim ze je pomaly by melo bejt snadny ho zrychlit. 
+% tohle uplne nesouvisi s tim ze R is not the fastest lang out there - naopak tim ze je pomaly by melo bejt snadny ho zrychlit. 
 
 Another matter is that R is inherently single threaded, it is very memory hungry (as it needs a lot of metadata about its internal structures) and all memory is allocated on the heap and managed and garbage collected by the runtime system of R.
 
