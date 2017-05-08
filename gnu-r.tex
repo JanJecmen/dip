@@ -498,17 +498,15 @@ To reduce the chance of such errors, the compiler keeps track of local and globa
 
 This section is based on  \autocite{design, hadley}.
 
-Firstly, R is not the fastest language out there. Of course, being an intepreted language, one cannot expect the performance of lagnuages like C that are compiled to native machine code. This is because during runtime, there is the inherent overhead of managing the virtual machine that executes a given program. For the AST interpreter, it entails walking the tree again with every evaluation of an expression. For the BC compiler and interpreter, there is first the compilation itself (which only happens once), but then dispatching of the instructions needs to be done in the interpreter loop.
-
-% tohle uplne nesouvisi s tim ze R is not the fastest lang out there - naopak tim ze je pomaly by melo bejt snadny ho zrychlit. 
+Firstly, R is hard to optimize and that makes it slow. Of course, being an intepreted language, one cannot expect the performance of lagnuages like C that are compiled to native machine code. This is because during runtime, there is the inherent overhead of managing the virtual machine that executes a given program. For the AST interpreter, it entails walking the tree again with every evaluation of an expression. For the BC compiler and interpreter, there is first the compilation itself (which only happens once), but then dispatching of the instructions needs to be done in the interpreter loop.
 
 Another matter is that R is inherently single threaded, it is very memory hungry (as it needs a lot of metadata about its internal structures) and all memory is allocated on the heap and managed and garbage collected by the runtime system of R.
 
 Just to give an example, incrementing a variable in C is done in one machine instruction (and possibly one memory store if the variable is not allocated in a register). An AST interpreter has to navigate a tree data structure in memory which, for this example, would probably consist of at least one assign node, two variable lookup nodes, one constant node and one arithmetic operation node. For the bytecode interpreter, the amount of work is considerably reduced, but still there is the large gap between machine instructions and the same bytecode instructions executed by a virtual machine (that must, for example, perform all type checking and possibly type promotions dynamically at runtime).
 
-% taky (a mozna hlavne?) ten problem je v tom, ze vsehcny hodnoty jsou boxovany v R a to casto multiple levels (jakoze binding -> SEXP promise -> SEXP value -> actual data... Kdezto v C mas jeden integer;-D
+Furthermore, all values are boxed in R (often more than once), so the interpreter has to work its way through multiple levels of indirection. For instance, a value can be boxed in a promise \cinline/SEXP/, which when forced produces a vector \cinline/SEXP/, which in turn contains the actual data.
 
-On top of that, R is a very dynamic language that gives a very high degree of freedom to a programmer. The design decisions behind R have an impact on performance. At runtime, users have full access to all of the program data and representation. This means, for example, that not only the values of a function's arguments can be accessed, but also the code that is used to compute them.
+That said, what makes R hard to optimize is that it is a very dynamic language that gives a very high degree of freedom to a programmer. At runtime, users have full access to all of the program data and representation. This means, for example, that not only the values of a function's arguments can be accessed, but also the code that is used to compute them.
 
 Even though R did not go as far as Lisp which makes no distinctions between programs and data, it provides ways to transform code into text and the other way round (namely, the functions \rinline/parse/ and \rinline/deparse/).
 

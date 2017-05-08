@@ -10,23 +10,20 @@ Finally, the interpreter loop was refactored and its dispatching mechanism chang
 
 All the implemented changes were evaluated using the Shootout benchmarks. Overall, the performance deficiency of RIR relative to GNU R was decreased by about 50~\%.
 
-RIR is still under active development and further work is needed. 
+RIR is still under active development and further work is needed.
 
-% tady je tolik prace, kterou tu muzes zminit, napriklad: vic se zabirat tim, co benchmarky delaji, lepsi instrukce, vyresit ty promises v callech, zlepsit cally obecne, eager promise evaluation, etc. etc. etc. etc. 
+The benchmarks where RIR lags behind would deserve a still more thorough investigation to uncover the remaining bottlenecks.
 
-% nesetril bych mistem a napsal tady cokoli co te napadne. 
+The call mechanism of RIR is generally slower than GNU R and ways to improve it should be explored. A~way to avoid the unnecessary promise allocations for constant arguments while preserving the ideas of RIR should be found.
 
-The abstract interpretation framework of RIR is one direction for future efforts. It can be improved and extended on one hand, and on the other be used to implement new analysis and optimization passes for RIR bytecode.
+Still more extensions to the instruction set are possible. It could be worth looking into superinstructions (i.e. identifying what common pairs, maybe even triples of instructions occur often and combining them).
+
+The abstract interpretation framework of RIR is another direction for future efforts. It can be improved and extended on one hand, and on the other be used to implement new analysis and optimization passes for RIR bytecode.
 
 In the early stages of this thesis, unsuccessful experiments were carried out with a tool called STOKE.\footnote{See \url{https://github.com/StanfordPL/stoke}}
 
-STOKE is a stochastic superoptimizer for the x86-64 architecture developed at Stanford University. It tries to 
+STOKE is a stochastic superoptimizer for the x86-64 architecture developed at Stanford University. It tries to optimize code sequences by randomly searching the space of possible program transformations. Repeatedly applying minor changes can surprisingly produce code that runs faster than the original. New and non-obvious ways to compute equivalent results can sometimes be discovered.
 
-Unfortunately, New ways of applying it to RIR could be explored.
+STOKE is able to optimize code for performance or size, syntesize implementations from scratch and verify equivalence between different code sequences for all possible inputs.
 
-
-STOKE uses random search to explore the extremely high-dimensional space of all possible program transformations. Although any one random transformation is unlikely to produce a code sequence that is desirable, the repeated application of millions of transformations is sufficient to produce novel and non-obvious code sequences. STOKE can be used in many different scenarios, such as optimizing code for performance or size, synthesizing an implementation from scratch or to trade accuracy of floating point computations for performance. As a superoptimizer, STOKE has been shown to outperform the code produced by general-purpose and domain-specific compilers, and in some cases expert hand-written code.
-
-In addition to searching over programs, STOKE contains verification infrastructure to show the equivalence between x86-64 programs. STOKE can consider test-cases, perform bounded verification all the way to fully formal verification that shows the equivalence for all possible inputs.
-
-STOKE has appeared in a number of publications. For a thorough introduction to the design of STOKE, see:
+Unfortunately, it appears that it has trouble with running on dynamically linked code, and thus could not be used directly. New ways of applying it to RIR could be explored.

@@ -605,7 +605,7 @@ In the switch cases there was a call to a function that implemented the instruct
 
 However, the compiler clearly had trouble with optimizing this version, possibly due to alias analysis being degraded (e.g., the interpreter passed the PC around as a pointer to a pointer, which means double indirection).\footnote{The inlining itself was actually happening, because the compiler would otherwise complain \autocite{gcc-inline}.}
 
-In the interpreter refactoring, I have built on the version where instruction functions were replaced by macros and directly used in the interpreter loop. Further, the infinite loop was replaced by a label and a \cinline/goto/. The dispatching was left to the \cinline/switch/ statement as before. One level of indirection was removed from the PC handling and the bytecode access functions that use the PC were also turned into macros.\footnote{Done by Oli Flückiger.}
+In the interpreter refactoring, I~have built on the version where instruction functions were replaced by macros and directly used in the interpreter loop. Further, the infinite loop was replaced by a label and a \cinline/goto/. The dispatching was left to the \cinline/switch/ statement as before. One level of indirection was removed from the PC handling and the bytecode access functions that use the PC were also turned into macros.\footnote{Done by Oli Flückiger.}
 
 To demonstrate the difference, a microbenchmark and its results are presented in listings \ref{lst:before-inline} and \ref{lst:after-inline}.
 
