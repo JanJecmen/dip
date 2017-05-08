@@ -4,6 +4,8 @@ RIR is an alternative compiler for the R language.\footnote{Homepage: \url{https
 
 RIR acts as a drop-in replacement for the GNU R bytecode compiler. It requires a patched version of GNU R that makes some slight adjustments that allow the standard GNU R expression evaluator function to interface with the RIR bytecode compiler and interpreter. RIR is written in C (the interpreter) and C++ (the compiler and analysis framework) and is compiled as a shared library that can be dynamically loaded by R.
 
+% mozna bych zminil ze ten interpreter je v C aby se jednou mohl stat soucasti GNU-R, kdezto statni muze bejt vzdycky balicek nekde ve footnote nebo tak. 
+
 Listing \ref{lst:rir} shows how to manually load RIR (although a script \emph{tools/R} is provided that does this automatically and turns on JIT, too).
 
 \begin{listing}[htbp]
@@ -36,7 +38,11 @@ For instance, when compiling a call, GNU R emits as many instructions as there a
 
 RIR behaves much more regularly in such a case. It compiles all arguments as promises (or rather, just the code objects for the expressions, since the promise environments are added only at runtime) and emits a single \cinline/call_/ instruction. The arguments are passed indirectly via an index of a call site structure for the particular call.
 
+% tohle je sice pravda, ale o co jde v RIR hlavne je aby instrukce byly easy to reason about - napriklad MAKEPROM v R dela X ruznejch veci v zavislosti na tom, co je presne na stacku - tomu se hlavne chceme vyhnout...
+
 Later at runtime, the GNU R instructions build a linked list of arguments on the stack, however the behavior depends on the type of the callee. The \rinline/MAKEPROM.OP/ instruction decides at runtime whether it will allocate a promise (for closures), evaluate the code right away (for builtins) or do nothing at all (for specials).
+
+% aha ty to pises tady - mozna bych vynechal ten call nahore a dal jen tohle - jakoze tohle je dulezity ten call je jen proste dusledek...
 
 RIR prepares the arguments at runtime and either evaluates them all eagerly or allocates them all as promises.
 
@@ -45,6 +51,8 @@ Another example is a \rinline/for/ loop. GNU R uses three instructions that hand
 RIR on the other hand emits instructions for every operation, such as incrementing the index variable, checking its bounds, jumping out of the loop conditionally, extracting the appropriate element of the loop sequence, storing it in the loop variable etc.
 
 In general, where GNU R uses complex instructions that have to cover a lot of work, RIR aims to achieve the same results by using lighter and more specialized instructions (reminiscent of the reduced instruction set ideals).
+
+% timhle odstavcem (ten in genreal) bych to cely zacal - jakoze nejdriv in general a pak specificky priklady.  
 
 Furthermore, as opposed to the assumptions used by the GNU R compiler (see \ref{assumptions}), RIR uses guard instructions that check at runtime whether the assumption holds or not (i.e. whether the inlined function is still the same as it was at compile time).
 
