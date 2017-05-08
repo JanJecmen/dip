@@ -448,6 +448,8 @@ Since the compiler uses only a single pass, it has limited options of optimizing
 
 Currently, constant folding is performed (depending on compiler options) on ``small'' expressions that consist of self-evaluating expressions, select base variables (like \rinline/pi/) and calls to some select base math functions (like \rinline/sqrt/ or \rinline/sin/). In the current version, no deoptimization is possible.
 
+% celej tenhle odstavec je fajn, ale *pokud* budeme nekde kratit, kratil bych tady... Jakoze neni to tvoje prace a je to popsany dost detailne.
+
 \subsection{BC compiler assumptions\label{assumptions}}
 
 When dealing with a language as dynamic as R, one needs to be very careful to distinguish compile time from execution time, and in particular to realize that between the two there is a window during which the state of the program can change.
@@ -455,6 +457,8 @@ When dealing with a language as dynamic as R, one needs to be very careful to di
 It was explained earlier (see listing \ref{lst:funcall}) that everything that happens in R is a function call, even constructs that have a special syntactic meaning, like \rinline/if/, \rinline/while/, \rinline/break/ etc.
 
 Furthermore, R uses lexical scoping. When a user starts an interactive session, they work in the global environment, which is the lowest environment in the hierarchy of environments known as the search path. The base environment (where all the default R bindings are defined) as well as any loaded packages are its ancestors in the search path. It is therefore possible to shadow the default bindings by creating new bindings that are found earlier on the search path.
+
+% tady z ty formuace neni jasny jestli base patri taky do searc path - pokud jo, tak default neni the lowest;-D
 
 Taking all this into consideration, to be conservative the compiler would have to compile everything as a function call, and then, at runtime, look up the current value of the callee binding and perform the call. Unfortunately, this almost completely negates the benefits of having a compiler at all, because the call is exactly what the AST interpreter does.
 
@@ -498,9 +502,13 @@ This section is based on  \autocite{design, hadley}.
 
 Firstly, R is not the fastest language out there. Of course, being an intepreted language, one cannot expect the performance of lagnuages like C that are compiled to native machine code. This is because during runtime, there is the inherent overhead of managing the virtual machine that executes a given program. For the AST interpreter, it entails walking the tree again with every evaluation of an expression. For the BC compiler and interpreter, there is first the compilation itself (which only happens once), but then dispatching of the instructions needs to be done in the interpreter loop.
 
+% tohle uplne nesouvisis tim ze R is not the fastest lang out there - naopak tim ze je pomaly by melo bejt snadny ho zrychlit. 
+
 Another matter is that R is inherently single threaded, it is very memory hungry (as it needs a lot of metadata about its internal structures) and all memory is allocated on the heap and managed and garbage collected by the runtime system of R.
 
 Just to give an example, incrementing a variable in C is done in one machine instruction (and possibly one memory store if the variable is not allocated in a register). An AST interpreter has to navigate a tree data structure in memory which, for this example, would probably consist of at least one assign node, two variable lookup nodes, one constant node and one arithmetic operation node. For the bytecode interpreter, the amount of work is considerably reduced, but still there is the large gap between machine instructions and the same bytecode instructions executed by a virtual machine (that must, for example, perform all type checking and possibly type promotions dynamically at runtime).
+
+% taky (a mozna hlavne?) ten problem je v tom, ze vsehcny hodnoty jsou boxovany v R a to casto multiple levels (jakoze binding -> SEXP promise -> SEXP value -> actual data... Kdezto v C mas jeden integer;-D
 
 On top of that, R is a very dynamic language that gives a very high degree of freedom to a programmer. The design decisions behind R have an impact on performance. At runtime, users have full access to all of the program data and representation. This means, for example, that not only the values of a function's arguments can be accessed, but also the code that is used to compute them.
 
