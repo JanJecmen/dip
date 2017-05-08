@@ -34,10 +34,11 @@ ggplot(combined, aes(x=reorder(version, i), y=time, color=experiment, group=inte
   stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
   facet_wrap(~benchmark) +
   scale_color_brewer(palette="Paired", name="Experiment") +
+  ylim(0, NA) +
   theme(axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1)) +
   xlab("Revision") +
   ylab("Time [s]") +
-  theme(text = element_text(family="DejaVu Sans"))
+  theme(text = element_text(family="DejaVu Sans"))# + theme(aspect.ratio=297/210)
 
 ggsave(file.path(args[[1]], "speedup_history.pdf"), device=cairo_pdf)
 ggsave(file.path(args[[1]], "speedup_history.png"), scale=1.5)
@@ -49,6 +50,7 @@ ggplot(nbody, aes(x=reorder(version, i), y=time, color=experiment, group=interac
   facet_wrap(~benchmark) +
   stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
   scale_color_brewer(palette="Paired", name="Experiment") +
+  ylim(0, NA) +
   theme(axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1)) +
   xlab("Revision") +
   ylab("Time [s]") +
@@ -64,6 +66,7 @@ ggplot(kn, aes(x=reorder(version, i), y=time, color=experiment, group=interactio
   facet_wrap(~benchmark) +
   stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
   scale_color_brewer(palette="Paired", name="Experiment") +
+  ylim(0, NA) +
   theme(axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1)) +
   xlab("Revision") +
   ylab("Time [s]") +
@@ -79,6 +82,7 @@ ggplot(pid, aes(x=reorder(version, i), y=time, color=experiment, group=interacti
   facet_wrap(~benchmark) +
   stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
   scale_color_brewer(palette="Paired", name="Experiment") +
+  ylim(0, NA) +
   theme(axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1)) +
   xlab("Revision") +
   ylab("Time [s]") +
@@ -94,6 +98,7 @@ ggplot(kn3, aes(x=reorder(version, i), y=time, color=experiment, group=interacti
   facet_wrap(~benchmark) +
   stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
   scale_color_brewer(palette="Paired", name="Experiment") +
+  ylim(0, NA) +
   theme(axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1)) +
   xlab("Revision") +
   ylab("Time [s]") +
@@ -103,12 +108,13 @@ ggsave(file.path(args[[1]], "knucleotide-brute3.pdf"), device=cairo_pdf)
 ggsave(file.path(args[[1]], "knucleotide-brute3.png"), scale=1.5)
 
 
-kn3 <- combined[grepl("reversecomplement.r", combined$benchmark),]
+rc <- combined[grepl("reversecomplement.r", combined$benchmark),]
 
-ggplot(kn3, aes(x=reorder(version, i), y=time, color=experiment, group=interaction(benchmark, experiment))) +
+ggplot(rc, aes(x=reorder(version, i), y=time, color=experiment, group=interaction(benchmark, experiment))) +
   facet_wrap(~benchmark) +
   stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
   scale_color_brewer(palette="Paired", name="Experiment") +
+  ylim(0, NA) +
   theme(axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1)) +
   xlab("Revision") +
   ylab("Time [s]") +
@@ -116,5 +122,21 @@ ggplot(kn3, aes(x=reorder(version, i), y=time, color=experiment, group=interacti
 
 ggsave(file.path(args[[1]], "reversecomplement.pdf"), device=cairo_pdf)
 ggsave(file.path(args[[1]], "reversecomplement.png"), scale=1.5)
+
+
+knr <- combined[grepl("knucleotide.r", combined$benchmark),]
+
+ggplot(knr, aes(x=reorder(version, i), y=time, color=experiment, group=interaction(benchmark, experiment))) +
+  facet_wrap(~benchmark) +
+  stat_summary(fun.data = "mean_cl_boot", geom = "smooth") +
+  scale_color_brewer(palette="Paired", name="Experiment") +
+  ylim(0, NA) +
+  theme(axis.text.x = element_text(size = 5, angle = 90, vjust = 0.5, hjust = 1)) +
+  xlab("Revision") +
+  ylab("Time [s]") +
+  theme(text = element_text(family="DejaVu Sans"))
+
+ggsave(file.path(args[[1]], "knucleotide.pdf"), device=cairo_pdf)
+ggsave(file.path(args[[1]], "knucleotide.png"), scale=1.5)
 
 

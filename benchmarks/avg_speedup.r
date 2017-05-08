@@ -50,3 +50,29 @@ ggplot(combined, aes(x=reorder(version, i), y=speedup, group = 1)) +
 
 ggsave(file.path(args[[1]], "avg_speedup.pdf"), device=cairo_pdf, width = 7, height = 7*aspect)
 ggsave(file.path(args[[1]], "avg_speedup.png"), scale=1.5, width = 7, height = 7*aspect)
+
+
+d <- read.csv(files[1])
+rir <- d[grepl("3 R_ENABLE_JIT=2 rir", d$experiment),]
+rir <- aggregate(. ~ benchmark, rir[-1], mean)
+base <- rir$time
+combined <- NULL
+
+for (i in seq_along(files)) {
+  d <- read.csv(files[i])
+  rir <- d[grepl("3 R_ENABLE_JIT=2 rir", d$experiment),]
+  d <- d[1,]
+  d$experiment <- NULL
+  d$benchmark <- NULL
+  d$time <- NULL
+  d$i <- i
+  rir <- aggregate(. ~ benchmark, rir[-1], mean)
+  d$speedup <- mean(base / rir$time)
+  d$version <- hashes[i]
+  if (is.null(combined)) {
+    combined <- d
+  } else {
+    combined <- rbind.data.frame(combined, d);
+  }
+}
+
