@@ -18,7 +18,7 @@ The call mechanism of RIR is generally slower than GNU R and ways to improve it 
 
 Still more extensions to the instruction set are possible. It could be worth looking into superinstructions (i.e. identifying what common pairs, maybe even triples of instructions occur often and combining them).
 
-The abstract interpretation framework of RIR is another direction for future efforts. It can be improved and extended on one hand, and on the other be used to implement new analysis and optimization passes for RIR bytecode.
+The abstract interpretation framework of RIR is another direction for future efforts. It can be improved and extended on one hand, and on the other be used to implement new analysis and optimization passes for RIR bytecode. For instance, promises could be avoided if an interprocedural analysis showed that the callee for sure evaluates its arguments.
 
 In the early stages of this thesis, unsuccessful experiments were carried out with a tool called STOKE.\footnote{See \url{https://github.com/StanfordPL/stoke}}
 
