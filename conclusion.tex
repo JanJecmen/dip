@@ -1,4 +1,4 @@
-The goal of this thesis was to bring RIR, an alternative bytecode compiler and interpreter for the R language, as close as possible in terms of performance to R's reference implementation.
+The goal of this thesis was to bring RIR, an alternative bytecode compiler and interpreter for the R language, closer to R's reference impelemtation in terms of performance.
 
 First, the R language and RIR were explored and their internal workings examined and compared. Experiments were carried out to discover their similarities and differences. Improvements to RIR infrastructure were implemented in three areas:
 
@@ -12,6 +12,12 @@ All the implemented changes were evaluated using the Shootout benchmarks. Overal
 
 RIR is still under active development and further work is needed. 
 
+% tady je tolik prace, kterou tu muzes zminit, napriklad: vic se zabirat tim, co benchmarky delaji, lepsi instrukce, vyresit ty promises v callech, zlepsit cally obecne, eager promise evaluation, etc. etc. etc. etc. 
+
+% nesetril bych mistem a napsal tady cokoli co te napadne. 
+
 The abstract interpretation framework of RIR is one direction for future efforts. It can be improved and extended on one hand, and on the other be used to implement new analysis and optimization passes for RIR bytecode.
 
 In the early stages of this thesis, unsuccessful experiments were carried out with a tool for superoptimizations called Stoke.\footnote{See \url{https://github.com/StanfordPL/stoke}} New ways of applying it to RIR could be explored.
+
+% o tomhle bych klidne napsat vic - tak 2-4 odstavce delsi to uplne v pohode snese
