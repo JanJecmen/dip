@@ -1,3 +1,4 @@
+
 \chapter{Evaluation\label{evaluation}}
 
 This chapter discusses how the changes implemented in chapter \ref{improvements} impact the performance of RIR.
@@ -39,6 +40,8 @@ spectralnorm & Computing eigenvalue using power method \tabularnewline
 \bottomrule
 \end{longtable}
 
+% uz tady bych zminil ty ruzny verze tech benchmarku a jak vzinkly - tzn ze se to prekladalo z C/ nebo Javy a ze ty naive verze sou v podstate doslovej preklad, ale ze clovek, kterej dela v Rku by to napsal jinak a lip a ze to odrazi dalsi verze benchmarku... blablabla
+
 The benchmarks were run on a machine with \emph{Intel(R) Core(TM) i5-6500} (4 cores) and 8~GB of memory. For every benchmark, three experiments were measured: GNU R interpreted code (JIT set to 0), GNU R byte-compiled code (JIT set to 2 and optimize to 2) and RIR compiled code (JIT set to 2).
 
 Each experiment took place in a fresh R session. The benchmark code was sourced, then it was executed 12 times, and the last 8 measured times were logged. This ensured that the machine was warmed up properly. Any compile time overheads were disregarded. The same measurements were performed for every set of added features.
@@ -58,6 +61,8 @@ The slowdowns are computed relative to the running time of GNU R byte-compiled c
 Overall, an average slowdown against GNU R was lowered by about 50~\% (from a factor of 1.678 to 1.336).
 
 It can be clearly seen that the most speedup was gained for the naive versions of benchmarks. These are the programs that use a lot of nested loops, lot of arithmetic operations and have relatively long functions.
+
+% Zminil bych ze tohle je presne to, co si se optimalizovat snazil;-)
 
 \todo[more]
 
@@ -83,6 +88,8 @@ ff73d75 & Use indirect threading \tabularnewline
 \bottomrule
 \end{longtable}
 
+% pokud mas ty data - v tyhle tabulce by se vylozene vyjimalo kdyby tam byl treti sloupec co by byl average speedup at the commit. Pokud ty data nemas, zvazil bych je vyrobit:-D
+
 Figure \ref{fig:history} captures the running times of each benchmark over the course of the work described in chapter \ref{improvements}.
 
 \begin{figure}[htbp]
@@ -95,13 +102,27 @@ In the figure, the light blue color represents performance of the GNU R bytecode
 
 RIR performance for some benchmarks was comparable to GNU R even before the first modifications, with some (notably \emph{pidigits}) outperforming GNU R.
 
+% why??
+
 Generally, the biggest improvements were brought by inlining the instructions into the interpreter loop. With the exception of some benchmarks not affected by any changes, all others gained a boost.
+
+% why??
 
 For some benchmarks, a particular revision brings minor slowdowns. This is the case for the removal of loop contexts (\emph{knucleotide}), colon (\emph{fasta naive 2}), superassignment and threading (\emph{knucleotide brute}).
 
+% why??
+
 Other benchmarks (e.g., \emph{mandelbrot}, \emph{regexdna}, \emph{spectralnorm}, \emph{reversecomplement} have remained constant throughout.
 
+% why??
+
 The plot for \emph{nbody naive} is zoomed in in figure \ref{fig:nbody}. The benchmark gained the most with inlining superassignment, as it uses it heavily in nested loops. Another large speedup was due to the interpreter refactoring and is so distinctive because the produced bytecode for the main hotspot (the function \rinline/advance/) is very arithmetic heavy with a lot of loops and subsetting and few calls. This means that long sequences of instructions get executed at once, thus leveraging the improved interpreter loop.
+
+% jak nahore pisu to why, tak presne tenhle odstavec nahore je co by tam melo bejt misto toho: Tady jasne vysvetlujes proc neco dela to, co to dela. Ty odstavce nahore jsou naproti tomu jen popisy grafu, coz je nuda. 
+
+% ty odpovedi jsou casto velmi kratky - napriklad ty benchmarky ktery se nijak nezmenily jsou proste dany tim ze pouzivaj minimul bytecode instrukci a vlastne jen volaj Rkovy funkce a R je gluecode... Takze amdahlem je jedno jak moc zrychlis bytecode, protoze ten benchmark v nem stravi minimum casu, atd. 
+
+% ale v kazdym tom mym why by mel bejt nejakej hint proc to tak je. Pokud si nejses 100% jistej proc to tak je, ale neco si myslis, muzes to napsat i tak a dat odkaz ze na further research. 
 
 \begin{figure}[htbp]
   \caption{\label{fig:nbody}Detail of the \emph{nbody naive} benchmark}
@@ -111,16 +132,28 @@ The plot for \emph{nbody naive} is zoomed in in figure \ref{fig:nbody}. The benc
 
 Another interesting result is the \emph{knucleotide brute} benchmark. Here it seems that the superassignment as well as threading made things worse. However, it also shows very wide confidence intervals.
 
+%why?
+
 \begin{figure}[htbp]
   \caption{\label{fig:knucleotide}Detail of the \emph{knucleotide brute} benchmark}
   \centering
   \tmpframe{\includegraphics[width=\linewidth]{images/knucleotide-brute}}
 \end{figure}
 
+% tenhle graf je super super super super divnej... Jakoze dokonce i gNU-R ja uplne jiny... By chtelo vazne intuci jak je to mozny -protoze kouknu na to a nedava to vubec smysl. Zkuspil bych tenhle benchmark pustit znova
+
+% a uz to mozna vidim... Jakoze furt to neni stopro... Ale je fakt bad practice dat ten graf s y osou co nezacina na nule - to pak budi dojem strasnejch zmen kdyz se pritom jedna o maly blbosti... Rozhodne bych je udelal s osou y normalni... pak by to nemelo vypadat tak silene... 
+
+% pokud to i pak bude vypadat silene, tak by to chtelo mnohem vic vysvetleni, namely ty menici se confidence intervaly pro ruzny verze - je fakt divny - ty confidences by mely bejt +/- stejny ne? Jako by na tom serveru neco bezelo nebo tak...
+
 The average speedup versus GNU R over the measured revisions is captured in figure \ref{fig:avg-speedup-history}. The result was obtained by averaging the measurements for each benchmark and then taking the average of those values. Of the changes, the most debatable is threading. It seems that this feature only starts to pay off for larger and longer programs.
+
+% to s tim threadingem tak zhruba odpovida - cim mensi pocet instrukci, tim mensi pocet prechodu, tim mensi cas travenej v interpreteru... 
 
 \begin{figure}[htbp]
   \caption{\label{fig:avg-speedup-history}History of average speedup vs. GNU R}
   \centering
   \tmpframe{\includegraphics[width=\linewidth]{images/avg_speedup}}
 \end{figure}
+
+% uplne tady chyby ta evaluace RIR compiler vs GNU-R compiler. Pokud ji nekde mas a akorat si ji nenapsal, tak bych ji zminil, pokud ji nemas, tak to uz nech. 
